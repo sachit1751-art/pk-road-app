@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
+export type AppRoleRoute = 'resident' | 'security' | 'authority' | 'admin';
+
 export interface RouteParams {
-  role?: 'resident' | 'security' | 'authority' | 'admin';
+  role?: AppRoleRoute;
   section?: string;
   id?: string;
   channel?: string;
   postId?: string;
   subSection?: string;
+  isUnknownRoute?: boolean;
 }
 
 interface RouterContextType {
@@ -14,9 +17,44 @@ interface RouterContextType {
   navigate: (path: string, options?: { replace?: boolean }) => void;
   goBack: (fallback?: string) => void;
   params: RouteParams;
+  isAllowedForRole: (userRole: string, targetPath?: string) => boolean;
 }
 
 const RouterContext = createContext<RouterContextType | undefined>(undefined);
+
+// Explicit registry of valid roles and their registered primary sections
+export const ROUTE_REGISTRY: Record<AppRoleRoute, string[]> = {
+  resident: [
+    'home',
+    'community',
+    'announcements',
+    'issues',
+    'visitors',
+    'profile',
+    'notifications',
+  ],
+  security: [
+    'gate',
+    'visitors',
+    'history',
+    'alerts',
+    'profile',
+  ],
+  authority: [
+    'work',
+    'issues',
+    'notifications',
+    'profile',
+  ],
+  admin: [
+    'overview',
+    'issues',
+    'residents',
+    'announcements',
+    'security',
+    'more',
+  ],
+};
 
 function normalizePath(hash: string): string {
   const clean = hash.replace(/^#/, '').trim();
@@ -26,8 +64,18 @@ function normalizePath(hash: string): string {
 
 export function parseRoute(path: string): RouteParams {
   const parts = path.split('/').filter(Boolean);
-  const role = (parts[0] || 'resident') as RouteParams['role'];
-  
+  const firstSegment = parts[0];
+
+  const validRoles: AppRoleRoute[] = ['resident', 'security', 'authority', 'admin'];
+  if (!firstSegment || !validRoles.includes(firstSegment as AppRoleRoute)) {
+    return {
+      role: 'resident',
+      section: 'home',
+      isUnknownRoute: Boolean(firstSegment && !validRoles.includes(firstSegment as any)),
+    };
+  }
+
+  const role = firstSegment as AppRoleRoute;
   let defaultSection = 'home';
   if (role === 'security') defaultSection = 'gate';
   else if (role === 'authority') defaultSection = 'work';
@@ -40,6 +88,7 @@ export function parseRoute(path: string): RouteParams {
   const params: RouteParams = {
     role,
     section,
+    isUnknownRoute: false,
   };
 
   if (role === 'resident') {
@@ -47,7 +96,11 @@ export function parseRoute(path: string): RouteParams {
       params.channel = third;
       params.postId = fourth;
     } else if (section === 'announcements' || section === 'issues' || section === 'visitors') {
-      params.id = third;
+      if (third === 'activity') {
+        params.subSection = 'activity';
+      } else {
+        params.id = third;
+      }
     }
   } else if (role === 'authority') {
     if (section === 'issues' || section === 'work') {
@@ -64,6 +117,33 @@ export function parseRoute(path: string): RouteParams {
   }
 
   return params;
+}
+
+export function checkRoleAllowed(userRole: string, targetPath: string): boolean {
+  const params = parseRoute(targetPath);
+  if (!params.role) return true;
+
+  if (userRole === 'rwa_admin') {
+    return true; // Admin has oversight access across the platform
+  }
+
+  if (params.role === 'resident') {
+    return userRole === 'resident';
+  }
+
+  if (params.role === 'security') {
+    return userRole === 'security_guard';
+  }
+
+  if (params.role === 'authority') {
+    return ['water_worker', 'electrical_worker', 'sanitation_worker', 'maintenance_worker'].includes(userRole);
+  }
+
+  if (params.role === 'admin') {
+    return userRole === 'rwa_admin';
+  }
+
+  return false;
 }
 
 export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -113,8 +193,12 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const params = parseRoute(path);
 
+  const isAllowedForRole = useCallback((userRole: string, targetPath?: string) => {
+    return checkRoleAllowed(userRole, targetPath || path);
+  }, [path]);
+
   return (
-    <RouterContext.Provider value={{ path, navigate, goBack, params }}>
+    <RouterContext.Provider value={{ path, navigate, goBack, params, isAllowedForRole }}>
       {children}
     </RouterContext.Provider>
   );

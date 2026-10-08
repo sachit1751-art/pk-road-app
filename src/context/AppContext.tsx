@@ -31,15 +31,19 @@ import {
   collection,
   doc,
   setDoc,
+  getDoc,
   onSnapshot,
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
 
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV;
+
 interface AppContextType {
   currentUser: UserProfile;
   firebaseUser: User | null;
   activeRole: UserRole;
+  isAuthLoading: boolean;
   flats: FlatRecord[];
   issues: Issue[];
   visitors: VisitorEntry[];
@@ -140,6 +144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_PROFILES[0]); // Defaults to resident Rahul Sharma
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
 
   const [flats, setFlats] = useState<FlatRecord[]>(DEMO_FLATS);
   const [issues, setIssues] = useState<Issue[]>(INITIAL_ISSUES);
@@ -184,6 +189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.warn('Profile sync notice:', e);
         }
       }
+      setIsAuthLoading(false);
     });
 
     return () => unsubscribe();
@@ -1167,6 +1173,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         firebaseUser,
         activeRole: currentUser.role,
+        isAuthLoading,
         flats,
         issues,
         visitors,

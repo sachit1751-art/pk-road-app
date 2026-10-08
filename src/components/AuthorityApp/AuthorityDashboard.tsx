@@ -155,8 +155,8 @@ export const AuthorityDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Primary Navigation Tabs */}
-      <nav className="bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs flex items-center justify-around gap-1">
+      {/* Primary Navigation Tabs (Desktop/Tablet) */}
+      <nav aria-label="Authority Navigation" className="hidden md:flex bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs items-center justify-around gap-1">
         {[
           { id: 'work', label: 'Work', path: '/authority/work', icon: Briefcase, count: assignedToMe.length },
           { id: 'issues', label: 'Issues', path: '/authority/issues', icon: Wrench, count: departmentIssues.length },

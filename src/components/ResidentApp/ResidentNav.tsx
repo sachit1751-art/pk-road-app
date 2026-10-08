@@ -28,7 +28,7 @@ export const ResidentNav: React.FC = () => {
   const currentSection = path.split('/')[2] || 'home';
 
   return (
-    <nav className="bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs flex items-center justify-around gap-1 mb-5">
+    <nav aria-label="Desktop Subnavigation" className="hidden md:flex bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs items-center justify-around gap-1 mb-5">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive =

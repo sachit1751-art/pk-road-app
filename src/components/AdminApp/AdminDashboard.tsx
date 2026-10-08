@@ -198,8 +198,8 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Primary Navigation Tabs */}
-      <nav className="bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs flex items-center justify-around gap-1">
+      {/* Primary Navigation Tabs (Desktop/Tablet) */}
+      <nav aria-label="Admin Navigation" className="hidden md:flex bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs items-center justify-around gap-1">
         {[
           { id: 'overview', label: 'Overview', path: '/admin/overview', icon: Layers },
           { id: 'issues', label: 'Issues', path: '/admin/issues', icon: Wrench, count: openIssues.length },

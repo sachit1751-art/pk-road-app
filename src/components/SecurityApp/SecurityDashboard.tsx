@@ -219,8 +219,8 @@ export const SecurityDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Primary Navigation Tabs */}
-      <nav className="bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs flex items-center justify-around gap-1">
+      {/* Primary Navigation Tabs (Desktop/Tablet) */}
+      <nav aria-label="Security Navigation" className="hidden md:flex bg-white border border-[#d3cec6] rounded-2xl p-1.5 shadow-xs items-center justify-around gap-1">
         {[
           { id: 'gate', label: 'Gate', path: '/security/gate', icon: Shield },
           { id: 'visitors', label: 'Visitors', path: '/security/visitors', icon: User, count: currentInsideVisitors.length },

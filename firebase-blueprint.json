@@ -1,0 +1,211 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role, verification status and flat association",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique Firebase Auth UID" },
+        "name": { "type": "string", "description": "Full name of the user" },
+        "email": { "type": "string", "description": "Email address" },
+        "role": { "type": "string", "enum": ["resident", "rwa_admin", "water_worker", "electrical_worker", "sanitation_worker", "maintenance_worker", "security_guard"] },
+        "department": { "type": "string", "description": "Department if authority worker" },
+        "flatNumber": { "type": "string", "description": "Assigned flat number" },
+        "block": { "type": "string", "description": "Assigned block/tower" },
+        "phone": { "type": "string", "description": "Contact phone number" },
+        "verified": { "type": "boolean", "description": "Resident verification flag" },
+        "verificationStatus": { "type": "string", "enum": ["unverified", "pending", "approved", "rejected"] },
+        "residentType": { "type": "string", "enum": ["Owner", "Tenant", "Family"] },
+        "proofDocumentUrl": { "type": "string", "description": "Residency proof document URL" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "PreApprovedVisitor": {
+      "title": "PreApprovedVisitor",
+      "description": "Pre-approved frequent visitor pass created by resident",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Pre-approval record ID" },
+        "residentId": { "type": "string", "description": "Resident UID" },
+        "residentName": { "type": "string", "description": "Resident name" },
+        "flatNumber": { "type": "string", "description": "Flat number" },
+        "block": { "type": "string", "description": "Block or tower" },
+        "visitorName": { "type": "string", "description": "Name of pre-approved visitor" },
+        "visitorType": { "type": "string", "enum": ["Guest", "Delivery", "Plumber", "Electrician", "Technician", "Domestic worker", "Cab/driver", "Service provider", "Other"] },
+        "phone": { "type": "string", "description": "Visitor phone number" },
+        "vehicleNumber": { "type": "string", "description": "Vehicle license number" },
+        "validityType": { "type": "string", "enum": ["Daily / Recurring", "Today Only", "Custom Date"] },
+        "validUntil": { "type": "string", "description": "Validity expiration date or label" },
+        "passcode": { "type": "string", "description": "4-digit entry verification PIN" },
+        "isActive": { "type": "boolean", "description": "Active or revoked flag" },
+        "notes": { "type": "string", "description": "Instructions for security guard" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "residentId", "flatNumber", "block", "visitorName", "visitorType", "validityType", "passcode", "isActive"]
+    },
+    "VerificationRequest": {
+      "title": "VerificationRequest",
+      "description": "Residency verification application reviewed by RWA admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Verification request ID" },
+        "userId": { "type": "string", "description": "User UID" },
+        "name": { "type": "string", "description": "Applicant full name" },
+        "email": { "type": "string", "description": "Applicant email" },
+        "phone": { "type": "string", "description": "Applicant phone" },
+        "block": { "type": "string", "description": "Target block" },
+        "flatNumber": { "type": "string", "description": "Target flat number" },
+        "residentType": { "type": "string", "enum": ["Owner", "Tenant", "Family"] },
+        "proofDocumentUrl": { "type": "string", "description": "Residency proof document URL" },
+        "documentType": { "type": "string", "enum": ["Electricity Bill", "Rent Agreement", "Property Deed", "Utility Bill"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "submittedAt": { "type": "string", "description": "Submission ISO timestamp" },
+        "reviewedAt": { "type": "string", "description": "Review ISO timestamp" },
+        "reviewedBy": { "type": "string", "description": "RWA Admin reviewer name" },
+        "rejectionReason": { "type": "string", "description": "Reason for rejection if denied" }
+      },
+      "required": ["id", "userId", "name", "block", "flatNumber", "residentType", "proofDocumentUrl", "status", "submittedAt"]
+    },
+    "Issue": {
+      "title": "Issue",
+      "description": "Community problem or maintenance ticket",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Issue ID" },
+        "title": { "type": "string", "description": "Issue title" },
+        "description": { "type": "string", "description": "Detailed description" },
+        "category": { "type": "string", "description": "Category (Water, Electrical, Sanitation, etc.)" },
+        "department": { "type": "string", "description": "Assigned department" },
+        "issueType": { "type": "string", "description": "Granular issue type" },
+        "priority": { "type": "string", "enum": ["low", "normal", "high", "urgent"] },
+        "status": { "type": "string", "enum": ["Submitted", "Received", "Under Review", "Assigned", "In Progress", "Waiting for Resident", "Resolved", "Closed", "Reopened", "Duplicate"] },
+        "block": { "type": "string", "description": "Block or tower" },
+        "flatNumber": { "type": "string", "description": "Flat number if applicable" },
+        "locationDetails": { "type": "string", "description": "Colony area or landmark" },
+        "reporterId": { "type": "string", "description": "UID of resident reporting" },
+        "reporterName": { "type": "string", "description": "Name of reporter" },
+        "assignedTo": { "type": "string", "description": "Assigned worker UID or department queue" },
+        "assignedWorkerName": { "type": "string", "description": "Assigned worker name" },
+        "photoUrl": { "type": "string", "description": "Attached photo URL" },
+        "proofPhotoUrl": { "type": "string", "description": "Resolution proof photo URL" },
+        "aiConfidence": { "type": "number", "description": "AI classification confidence score" },
+        "createdAt": { "type": "string", "description": "Submission ISO timestamp" },
+        "updatedAt": { "type": "string", "description": "Last update ISO timestamp" }
+      },
+      "required": ["id", "title", "description", "department", "status", "priority", "reporterId", "createdAt"]
+    },
+    "VisitorEntry": {
+      "title": "VisitorEntry",
+      "description": "Gate visitor entry and exit record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Visitor entry ID" },
+        "visitorName": { "type": "string", "description": "Name of the visitor" },
+        "flatNumber": { "type": "string", "description": "Target flat number" },
+        "block": { "type": "string", "description": "Target block" },
+        "visitorType": { "type": "string", "enum": ["Guest", "Delivery", "Plumber", "Electrician", "Technician", "Domestic worker", "Cab/driver", "Service provider", "Other"] },
+        "phone": { "type": "string", "description": "Visitor phone number" },
+        "vehicleNumber": { "type": "string", "description": "Vehicle license number" },
+        "purpose": { "type": "string", "description": "Purpose of visit" },
+        "gate": { "type": "string", "description": "Gate used for entry" },
+        "entryTime": { "type": "string", "description": "Entry ISO timestamp" },
+        "exitTime": { "type": "string", "description": "Exit ISO timestamp if exited" },
+        "status": { "type": "string", "enum": ["inside", "exited"] },
+        "residentApproval": { "type": "string", "enum": ["pending", "approved", "denied"] },
+        "guardName": { "type": "string", "description": "Security guard recording entry" },
+        "isPreApproved": { "type": "boolean", "description": "Whether expedited via pre-approval" },
+        "passcodeUsed": { "type": "string", "description": "Pre-approval passcode used" }
+      },
+      "required": ["id", "visitorName", "flatNumber", "block", "visitorType", "entryTime", "status"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Official RWA notice or colony emergency alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Announcement ID" },
+        "title": { "type": "string", "description": "Notice title" },
+        "content": { "type": "string", "description": "Notice body text" },
+        "category": { "type": "string", "enum": ["General", "Maintenance", "Water Shutdown", "Electricity", "Security", "Meeting", "Emergency", "Event"] },
+        "priority": { "type": "string", "enum": ["normal", "urgent", "emergency"] },
+        "targetBlock": { "type": "string", "description": "Target block or ALL" },
+        "isPinned": { "type": "boolean", "description": "Whether pinned at top" },
+        "authorName": { "type": "string", "description": "Author or RWA Committee" },
+        "createdAt": { "type": "string", "description": "Publish timestamp" },
+        "acknowledgedBy": { "type": "string", "description": "Comma-separated user IDs who acknowledged" }
+      },
+      "required": ["id", "title", "content", "category", "priority", "targetBlock", "createdAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Discussion post in colony channels",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Post ID" },
+        "channel": { "type": "string", "enum": ["general", "buy-sell", "lost-found", "events", "help", "recommendations"] },
+        "title": { "type": "string", "description": "Post title or headline" },
+        "content": { "type": "string", "description": "Post content" },
+        "authorId": { "type": "string", "description": "Author UID" },
+        "authorName": { "type": "string", "description": "Author name" },
+        "authorFlat": { "type": "string", "description": "Author flat and block" },
+        "imageUrl": { "type": "string", "description": "Optional image URL" },
+        "price": { "type": "string", "description": "Price for buy/sell items" },
+        "likesCount": { "type": "number", "description": "Count of reactions" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["id", "channel", "content", "authorId", "authorName", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Smart notification for residents and workers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Notification ID" },
+        "userId": { "type": "string", "description": "Target user UID or ALL" },
+        "flatNumber": { "type": "string", "description": "Target flat number" },
+        "title": { "type": "string", "description": "Notification title" },
+        "message": { "type": "string", "description": "Notification message" },
+        "type": { "type": "string", "enum": ["visitor", "issue_update", "announcement", "emergency", "verification"] },
+        "relatedId": { "type": "string", "description": "Related item ID" },
+        "isRead": { "type": "boolean", "description": "Read flag" },
+        "createdAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "title", "message", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with role information"
+    },
+    "/preapproved_visitors/{visitorId}": {
+      "schema": "PreApprovedVisitor",
+      "description": "Pre-approved frequent visitors for expedited gate clearance"
+    },
+    "/verification_requests/{requestId}": {
+      "schema": "VerificationRequest",
+      "description": "Resident proof of residency verification queue"
+    },
+    "/issues/{issueId}": {
+      "schema": "Issue",
+      "description": "Resident problem tickets and worker assignments"
+    },
+    "/visitors/{visitorId}": {
+      "schema": "VisitorEntry",
+      "description": "Security gate entry and exit records"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Official RWA announcements and emergency alerts"
+    },
+    "/posts/{postId}": {
+      "schema": "CommunityPost",
+      "description": "WhatsApp-style colony channel discussion posts"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Resident and worker alerts"
+    }
+  }
+}

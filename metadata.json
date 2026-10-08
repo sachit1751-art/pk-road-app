@@ -1,0 +1,6 @@
+{
+  "name": "ColonyHub - Community & Operations Platform",
+  "description": "Integrated residential operations system uniting residents, RWA admins, maintenance authorities, and gate security with AI-driven issue routing and visitor management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

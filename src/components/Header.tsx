@@ -142,7 +142,67 @@ export const Header: React.FC = () => {
     else navigate('/authority/work');
   };
 
-  // Breadcrumb generation
+  // Breadcrumb generation & page title resolution
+  const getPageTitle = () => {
+    if (path.startsWith('/resident')) {
+      if (path === '/resident') return 'Resident Dashboard';
+      if (path.startsWith('/resident/community')) return 'Community Discussions';
+      if (path.startsWith('/resident/announcements')) return 'Official Announcements';
+      if (path.startsWith('/resident/issues')) {
+        if (params.id === 'new') return 'Report New Issue';
+        if (params.id) return 'Issue Details';
+        return 'Colony Issues';
+      }
+      if (path.startsWith('/resident/visitors')) {
+        if (path.includes('/activity')) return 'Visitor Activity Log';
+        if (params.id) return 'Visitor Pass Details';
+        return 'Visitor Pass Hub';
+      }
+      if (path.startsWith('/resident/profile')) return 'Resident Profile';
+      if (path.startsWith('/resident/notifications')) return 'Notifications';
+      return 'Resident Portal';
+    } else if (path.startsWith('/security')) {
+      if (path.startsWith('/security/gate')) return 'Gate Operational Desk';
+      if (path.startsWith('/security/visitors')) {
+        if (params.id) return 'Visitor Verification';
+        return 'Inside Visitors';
+      }
+      if (path.startsWith('/security/history')) return 'Gate Activity Log';
+      if (path.startsWith('/security/alerts')) return 'Security Alerts';
+      if (path.startsWith('/security/profile')) return 'Guard Profile';
+      return 'Security Operations';
+    } else if (path.startsWith('/authority')) {
+      if (path.startsWith('/authority/work')) return 'Assigned Work Queue';
+      if (path.startsWith('/authority/issues')) {
+        if (params.id) return 'Ticket Details';
+        return 'Department Issues';
+      }
+      if (path.startsWith('/authority/notifications')) return 'Department Alerts';
+      if (path.startsWith('/authority/profile')) return 'Authority Profile';
+      return 'Authority Portal';
+    } else if (path.startsWith('/admin')) {
+      if (path.startsWith('/admin/overview')) return 'RWA Admin Overview';
+      if (path.startsWith('/admin/issues')) {
+        if (params.id) return 'Issue Management';
+        return 'Colony Issues Management';
+      }
+      if (path.startsWith('/admin/residents')) {
+        if (params.id) return 'Resident Details';
+        return 'Resident Verifications';
+      }
+      if (path.startsWith('/admin/announcements')) {
+        if (params.id) return 'Announcement Management';
+        return 'Broadcast Announcements';
+      }
+      if (path.startsWith('/admin/security')) return 'Security Operations';
+      if (path.startsWith('/admin/more')) return 'Admin Settings & More';
+      return 'RWA Admin Console';
+    }
+    return 'Greenwood Estate';
+  };
+
+  const pageTitle = getPageTitle();
+
   const pathParts = path.split('/').filter(Boolean);
   const breadcrumbs = pathParts.map((part, idx) => {
     const fullPath = '/' + pathParts.slice(0, idx + 1).join('/');
@@ -153,7 +213,7 @@ export const Header: React.FC = () => {
   return (
     <header className="sticky top-0 z-40 bg-[#f5f1ec] border-b border-[#d3cec6] px-4 lg:px-8 py-2.5">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* Brand + Breadcrumbs */}
+        {/* Brand + Page Title & Breadcrumbs */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           <button
             onClick={() => {
@@ -177,26 +237,38 @@ export const Header: React.FC = () => {
             </div>
           </button>
 
-          {/* Breadcrumb Context Trail */}
-          <nav aria-label="Breadcrumb" className="hidden md:flex items-center gap-1.5 text-xs text-[#7b7b78] pl-3 border-l border-stone-300">
-            {breadcrumbs.map((crumb) => (
-              <React.Fragment key={crumb.fullPath}>
-                <ChevronRight className="w-3 h-3 text-stone-400" />
-                {crumb.isLast ? (
-                  <span className="font-semibold text-[#111111] truncate max-w-[140px]">
-                    {crumb.label}
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => navigate(crumb.fullPath)}
-                    className="hover:text-stone-900 transition"
-                  >
-                    {crumb.label}
-                  </button>
-                )}
-              </React.Fragment>
-            ))}
-          </nav>
+          {/* Desktop Page Title & Breadcrumb Context Trail */}
+          <div className="hidden md:flex flex-col pl-3 border-l border-stone-300">
+            <span className="text-xs font-bold text-[#111111] leading-tight">
+              {pageTitle}
+            </span>
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-[11px] text-[#7b7b78] mt-0.5">
+              {breadcrumbs.map((crumb) => (
+                <React.Fragment key={crumb.fullPath}>
+                  <ChevronRight className="w-3 h-3 text-stone-400" />
+                  {crumb.isLast ? (
+                    <span className="font-medium text-stone-800 truncate max-w-[140px]">
+                      {crumb.label}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => navigate(crumb.fullPath)}
+                      className="hover:text-stone-900 transition"
+                    >
+                      {crumb.label}
+                    </button>
+                  )}
+                </React.Fragment>
+              ))}
+            </nav>
+          </div>
+
+          {/* Mobile Page Title */}
+          <div className="md:hidden flex flex-col pl-2.5 border-l border-stone-300">
+            <span className="text-xs font-bold text-[#111111] truncate max-w-[150px]">
+              {pageTitle}
+            </span>
+          </div>
         </div>
 
         {/* Center: Persona Switcher */}

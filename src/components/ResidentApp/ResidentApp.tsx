@@ -447,7 +447,7 @@ export const ResidentApp: React.FC = () => {
               {posts.slice(0, 2).map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => navigate(`/resident/community`)}
+                  onClick={() => navigate(`/resident/community/${p.channel}`)}
                   className="p-3.5 rounded-xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs"
                 >
                   <div className="flex items-center gap-2">

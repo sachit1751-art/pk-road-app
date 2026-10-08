@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useRouter } from '../../router/Router';
 import { ChannelId, CommunityPost } from '../../types';
 import {
   MessageSquare,
@@ -16,12 +17,22 @@ import {
   Calendar,
   Sparkles,
   Share2,
+  ArrowLeft,
 } from 'lucide-react';
 
 export const CommunityDiscussions: React.FC = () => {
   const { posts, createPost, addPostComment, reactToPost, currentUser } = useApp();
+  const { navigate, goBack, params } = useRouter();
 
-  const [activeChannel, setActiveChannel] = useState<ChannelId>('general');
+  const [activeChannel, setActiveChannel] = useState<ChannelId>(() => {
+    return (params.channel as ChannelId) || 'general';
+  });
+
+  useEffect(() => {
+    if (params.channel && ['general', 'buy-sell', 'lost-found', 'events', 'help', 'recommendations'].includes(params.channel)) {
+      setActiveChannel(params.channel as ChannelId);
+    }
+  }, [params.channel]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewPostForm, setShowNewPostForm] = useState(false);
 
@@ -84,6 +95,23 @@ export const CommunityDiscussions: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between pb-1">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => goBack('/resident')}
+            className="p-1.5 rounded-xl border border-[#d3cec6] bg-white hover:bg-stone-100 text-stone-700 transition flex items-center justify-center"
+            title="Back to previous page"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <div>
+            <h2 className="text-sm font-bold text-[#111111]">Resident Community Forum</h2>
+            <p className="text-xs text-[#7b7b78]">Neighborhood discussions, buy/sell, help & recommendations</p>
+          </div>
+        </div>
+      </div>
+
       {/* Channels Bar */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {channels.map((ch) => {
@@ -92,7 +120,10 @@ export const CommunityDiscussions: React.FC = () => {
           return (
             <button
               key={ch.id}
-              onClick={() => setActiveChannel(ch.id)}
+              onClick={() => {
+                setActiveChannel(ch.id);
+                navigate(`/resident/community/${ch.id}`);
+              }}
               className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition border ${
                 isActive
                   ? 'bg-[#111111] text-white border-[#111111] shadow-xs'

@@ -35,6 +35,8 @@ import {
   onSnapshot,
   updateDoc,
   deleteDoc,
+  query,
+  where,
 } from 'firebase/firestore';
 
 export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV;
@@ -210,73 +212,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Set up Firestore Listeners for real-time sync
   useEffect(() => {
+    if (isDemoMode || !firebaseUser) return; // Demo mode uses local data
+
     try {
-      const unsubIssues = onSnapshot(collection(db, 'issues'), (snap) => {
-        if (!snap.empty) {
+      const issuesCol = collection(db, 'issues');
+      let issuesQuery;
+      if (currentUser.role === 'rwa_admin') {
+        issuesQuery = issuesCol;
+      } else if (currentUser.role.includes('_worker')) {
+        issuesQuery = query(issuesCol, where('department', '==', currentUser.department));
+      } else {
+        issuesQuery = query(issuesCol, where('reporterId', '==', currentUser.uid));
+      }
+      
+      const unsubIssues = onSnapshot(issuesQuery, (snap) => {
           const list: Issue[] = [];
           snap.forEach((d) => list.push(d.data() as Issue));
           list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           setIssues(list);
-        }
       }, (err) => console.warn('Issues snapshot notice:', err.message));
 
-      const unsubVisitors = onSnapshot(collection(db, 'visitors'), (snap) => {
-        if (!snap.empty) {
+      const visitorsCol = collection(db, 'visitors');
+      let visitorsQuery;
+      if (currentUser.role === 'security_guard' || currentUser.role === 'rwa_admin') {
+        visitorsQuery = visitorsCol;
+      } else {
+        visitorsQuery = query(visitorsCol, where('flatNumber', '==', currentUser.flatNumber), where('block', '==', currentUser.block));
+      }
+      
+      const unsubVisitors = onSnapshot(visitorsQuery, (snap) => {
           const list: VisitorEntry[] = [];
           snap.forEach((d) => list.push(d.data() as VisitorEntry));
           list.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
           setVisitors(list);
-        }
       }, (err) => console.warn('Visitors snapshot notice:', err.message));
 
       const unsubAnnounce = onSnapshot(collection(db, 'announcements'), (snap) => {
-        if (!snap.empty) {
-          const list: Announcement[] = [];
-          snap.forEach((d) => list.push(d.data() as Announcement));
-          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setAnnouncements(list);
-        }
+        const list: Announcement[] = [];
+        snap.forEach((d) => {
+            const ann = d.data() as Announcement;
+            if (currentUser.role === 'rwa_admin' || ann.targetBlock === 'ALL' || ann.targetBlock === currentUser.block) {
+                list.push(ann);
+            }
+        });
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setAnnouncements(list);
       }, (err) => console.warn('Announcements snapshot notice:', err.message));
 
-      const unsubPosts = onSnapshot(collection(db, 'posts'), (snap) => {
-        if (!snap.empty) {
-          const list: CommunityPost[] = [];
-          snap.forEach((d) => list.push(d.data() as CommunityPost));
-          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setPosts(list);
-        }
-      }, (err) => console.warn('Posts snapshot notice:', err.message));
-
-      const unsubPreApproved = onSnapshot(collection(db, 'preapproved_visitors'), (snap) => {
-        if (!snap.empty) {
-          const list: PreApprovedVisitor[] = [];
-          snap.forEach((d) => list.push(d.data() as PreApprovedVisitor));
-          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setPreApprovedVisitors(list);
-        }
-      }, (err) => console.warn('Pre-approved snapshot notice:', err.message));
-
-      const unsubVerif = onSnapshot(collection(db, 'verification_requests'), (snap) => {
-        if (!snap.empty) {
-          const list: VerificationRequest[] = [];
-          snap.forEach((d) => list.push(d.data() as VerificationRequest));
-          list.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-          setVerificationRequests(list);
-        }
-      }, (err) => console.warn('Verification requests snapshot notice:', err.message));
+      const unsubNotifs = onSnapshot(query(collection(db, 'notifications'), where('userId', 'in', [currentUser.uid, 'ALL'])), (snap) => {
+        const list: AppNotification[] = [];
+        snap.forEach((d) => list.push(d.data() as AppNotification));
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setNotifications(list);
+      }, (err) => console.warn('Notifications snapshot notice:', err.message));
 
       return () => {
         unsubIssues();
         unsubVisitors();
         unsubAnnounce();
-        unsubPosts();
-        unsubPreApproved();
-        unsubVerif();
+        unsubNotifs();
       };
     } catch (e) {
       console.warn('Firestore real-time listeners initialization notice:', e);
     }
-  }, []);
+  }, [firebaseUser, currentUser]);
 
   // Quick Persona Role Switcher for instant testing
   const switchRolePersona = (role: UserRole) => {

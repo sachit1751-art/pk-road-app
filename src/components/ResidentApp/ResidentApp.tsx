@@ -36,11 +36,7 @@ export const ResidentApp: React.FC = () => {
   const { currentUser, issues, visitors, announcements, preApprovedVisitors, posts, updateIssueStatus } = useApp();
   const { path, navigate, params, goBack } = useRouter();
 
-  const [showReportModal, setShowReportModal] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [selectedVisitor, setSelectedVisitor] = useState<VisitorEntry | null>(null);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [issueFilter, setIssueFilter] = useState<string>('ALL');
 
   // Optimistic UI & Firestore sync states
@@ -69,23 +65,31 @@ export const ResidentApp: React.FC = () => {
 
   const emergencyAlert = announcements.find((a) => a.priority === 'emergency');
 
-  // Handle URL deep-linking
+  // Drive detail views and modals from URL router params
+  const currentSection = params.section || 'home';
+  const showReportModal = currentSection === 'issues' && params.id === 'new';
+  const selectedIssue = currentSection === 'issues' && params.id && params.id !== 'new'
+    ? issues.find((i) => i.id === params.id) || null
+    : null;
+  const selectedVisitor = currentSection === 'visitors' && params.id
+    ? visitors.find((v) => v.id === params.id) || null
+    : null;
+  const selectedAnnouncement = currentSection === 'announcements' && params.id
+    ? announcements.find((a) => a.id === params.id) || null
+    : null;
+
+  // 'NotFound' guard: Redirect if ID is provided but data is not found
   useEffect(() => {
-    if (params.section === 'issues' && params.id) {
-      if (params.id === 'new') {
-        setShowReportModal(true);
-      } else {
-        const found = issues.find((i) => i.id === params.id);
-        if (found) setSelectedIssue(found);
-      }
-    } else if (params.section === 'visitors' && params.id) {
-      const found = visitors.find((v) => v.id === params.id);
-      if (found) setSelectedVisitor(found);
-    } else if (params.section === 'announcements' && params.id) {
-      const found = announcements.find((a) => a.id === params.id);
-      if (found) setSelectedAnnouncement(found);
+    if (currentSection === 'issues' && params.id && params.id !== 'new' && !selectedIssue) {
+      navigate('/resident/issues');
     }
-  }, [params.section, params.id, issues, visitors, announcements]);
+    if (currentSection === 'visitors' && params.id && !selectedVisitor) {
+      navigate('/resident/visitors');
+    }
+    if (currentSection === 'announcements' && params.id && !selectedAnnouncement) {
+      navigate('/resident/announcements');
+    }
+  }, [currentSection, params.id, selectedIssue, selectedVisitor, selectedAnnouncement, navigate]);
 
   const filteredIssues = myIssues.filter((i) => {
     if (issueFilter === 'ALL') return true;
@@ -93,8 +97,6 @@ export const ResidentApp: React.FC = () => {
     if (issueFilter === 'RESOLVED') return i.status === 'Resolved' || i.status === 'Closed';
     return true;
   });
-
-  const currentSection = params.section || 'home';
 
   // Wrapper for optimistic issue status update with loading/error feedback
   const handleOptimisticStatusUpdate = async (issueId: string, newStatus: IssueStatus) => {
@@ -210,7 +212,7 @@ export const ResidentApp: React.FC = () => {
           {/* Emergency Alert Banner */}
           {emergencyAlert && (
             <div
-              onClick={() => setSelectedAnnouncement(emergencyAlert)}
+              onClick={() => navigate(`/resident/announcements/${emergencyAlert.id}`)}
               className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-rose-100/70 transition shadow-sm"
             >
               <div className="flex items-start gap-3">
@@ -263,7 +265,7 @@ export const ResidentApp: React.FC = () => {
                   if (!isVerified && !isPendingVerification) {
                     setShowVerificationModal(true);
                   } else {
-                    setShowReportModal(true);
+                    navigate('/resident/issues/new');
                   }
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ff5600] text-white hover:bg-orange-600 text-xs font-semibold transition shadow-xs"
@@ -356,7 +358,7 @@ export const ResidentApp: React.FC = () => {
                 {myIssues.slice(0, 3).map((iss) => (
                   <div
                     key={iss.id}
-                    onClick={() => setSelectedIssue(iss)}
+                    onClick={() => navigate(`/resident/issues/${iss.id}`)}
                     className="p-4 rounded-2xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs flex items-center justify-between gap-3"
                   >
                     <div className="flex items-start gap-3">
@@ -410,7 +412,7 @@ export const ResidentApp: React.FC = () => {
                 {flatVisitors.slice(0, 4).map((v) => (
                   <div
                     key={v.id}
-                    onClick={() => setSelectedVisitor(v)}
+                    onClick={() => navigate(`/resident/visitors/${v.id}`)}
                     className="p-3.5 rounded-xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer flex items-center justify-between gap-3 shadow-xs"
                   >
                     <div className="flex items-center gap-2.5">
@@ -464,7 +466,7 @@ export const ResidentApp: React.FC = () => {
               {announcements.slice(0, 2).map((ann) => (
                 <div
                   key={ann.id}
-                  onClick={() => setSelectedAnnouncement(ann)}
+                  onClick={() => navigate(`/resident/announcements/${ann.id}`)}
                   className="p-4 rounded-2xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs space-y-1.5"
                 >
                   <div className="flex items-center gap-2">
@@ -545,7 +547,7 @@ export const ResidentApp: React.FC = () => {
                 if (!isVerified && !isPendingVerification) {
                   setShowVerificationModal(true);
                 } else {
-                  setShowReportModal(true);
+                  navigate('/resident/issues/new');
                 }
               }}
               className="px-4 py-2 rounded-xl bg-[#ff5600] text-white text-xs font-semibold hover:bg-orange-600 transition flex items-center gap-1.5 shadow-xs"
@@ -559,7 +561,7 @@ export const ResidentApp: React.FC = () => {
             {filteredIssues.map((iss) => (
               <div
                 key={iss.id}
-                onClick={() => setSelectedIssue(iss)}
+                onClick={() => navigate(`/resident/issues/${iss.id}`)}
                 className="p-4 rounded-2xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs space-y-2"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -617,21 +619,20 @@ export const ResidentApp: React.FC = () => {
       {/* MODALS */}
       <ReportIssueModal
         isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
+        onClose={() => navigate('/resident/issues')}
         onCreated={(createdIssue) => {
-          setShowReportModal(false);
-          setSelectedIssue(createdIssue);
+          navigate(`/resident/issues/${createdIssue.id}`);
         }}
       />
 
       <IssueDetailsModal
         issue={selectedIssue}
-        onClose={() => setSelectedIssue(null)}
+        onClose={() => navigate('/resident/issues')}
       />
 
       <VisitorDetailModal
         visitor={selectedVisitor}
-        onClose={() => setSelectedVisitor(null)}
+        onClose={() => navigate('/resident/visitors')}
       />
 
       <VerificationModal
@@ -661,7 +662,7 @@ export const ResidentApp: React.FC = () => {
                 </span>
               </div>
               <button
-                onClick={() => setSelectedAnnouncement(null)}
+                onClick={() => navigate('/resident/announcements')}
                 className="text-stone-400 hover:text-stone-700"
               >
                 ✕
@@ -685,7 +686,7 @@ export const ResidentApp: React.FC = () => {
                 Target Audience: Block {selectedAnnouncement.targetBlock}
               </span>
               <button
-                onClick={() => setSelectedAnnouncement(null)}
+                onClick={() => navigate('/resident/announcements')}
                 className="px-4 py-2 rounded-xl bg-[#111111] text-white text-xs font-bold hover:bg-stone-800 transition"
               >
                 Close Notice

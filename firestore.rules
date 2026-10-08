@@ -35,6 +35,13 @@ service cloud.firestore {
       ];
     }
 
+    function isVerifiedResident() {
+      return isSignedIn() && userExists() && 
+             userDoc().role == 'resident' && 
+             userDoc().verified == true && 
+             userDoc().verificationStatus == 'approved';
+    }
+
     function getWorkerDept() {
       return userExists() ? userDoc().department : '';
     }
@@ -93,18 +100,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Pre-approved visitors
+    // Pre-approved visitors - Only verified residents
     match /preapproved_visitors/{passId} {
       allow read: if isSignedIn() && (
         resource.data.residentId == request.auth.uid ||
         isSecurityGuard() ||
         isAdmin()
       );
-      allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
-      allow update, delete: if isSignedIn() && (
-        resource.data.residentId == request.auth.uid ||
-        isAdmin()
-      );
+      allow create: if isVerifiedResident() && request.resource.data.residentId == request.auth.uid;
+      allow update, delete: if isVerifiedResident() && resource.data.residentId == request.auth.uid || isAdmin();
     }
 
     // Verification requests
@@ -122,10 +126,10 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         isAdmin() ||
         resource.data.reporterId == request.auth.uid ||
-        (isWorker() && (resource.data.department == getWorkerDept() || resource.data.assignedTo == request.auth.uid))
+        (isWorker() && resource.data.assignedTo == request.auth.uid)
       );
 
-      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid;
+      allow create: if isVerifiedResident() && request.resource.data.reporterId == request.auth.uid;
 
       allow update: if isSignedIn() && (
         isAdmin() ||
@@ -135,6 +139,7 @@ service cloud.firestore {
           (resource.data.assignedTo == request.auth.uid || request.resource.data.assignedTo == request.auth.uid)
         ) ||
         (
+          isVerifiedResident() &&
           resource.data.reporterId == request.auth.uid &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'status',
@@ -166,18 +171,16 @@ service cloud.firestore {
         isSecurityGuard() ||
         isAdmin() ||
         (
-          userExists() &&
+          isVerifiedResident() &&
           resource.data.flatNumber == getUserFlat() &&
           resource.data.block == getUserBlock() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'residentApproval',
             'status'
           ]) &&
-          request.resource.data.visitorName == resource.data.visitorName &&
-          request.resource.data.phone == resource.data.phone &&
-          request.resource.data.gate == resource.data.gate &&
-          request.resource.data.block == resource.data.block &&
-          request.resource.data.flatNumber == resource.data.flatNumber
+          // Validate legal state transition: approved (inside) or denied (exited)
+          ((request.resource.data.residentApproval == 'approved' && request.resource.data.status == 'inside') ||
+           (request.resource.data.residentApproval == 'denied' && request.resource.data.status == 'exited'))
         )
       );
 
@@ -186,10 +189,14 @@ service cloud.firestore {
 
     // Announcements
     match /announcements/{announcementId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.targetBlock == 'ALL' ||
+        resource.data.targetBlock == getUserBlock()
+      );
       allow create, delete: if isAdmin();
       allow update: if isAdmin() || (
-        isSignedIn() &&
+        isVerifiedResident() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'acknowledgedBy'
         ])
@@ -199,7 +206,7 @@ service cloud.firestore {
     // Posts
     match /posts/{postId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow create: if isVerifiedResident() && request.resource.data.authorId == request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.authorId == request.auth.uid ||
         isAdmin() ||
@@ -219,8 +226,7 @@ service cloud.firestore {
         isAdmin()
       );
 
-      allow create: if isAdmin() || isSecurityGuard() || isWorker() ||
-        (isSignedIn() && request.resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || isSecurityGuard() || isWorker();
 
       allow update: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||

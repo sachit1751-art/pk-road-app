@@ -15,26 +15,19 @@ import {
 } from 'lucide-react';
 
 const MainContent: React.FC = () => {
-  const { activeRole, switchRolePersona, switchPersonaByUid, currentUser } = useApp();
-  const { path, navigate, params } = useRouter();
+  const { activeRole, switchRolePersona, switchPersonaByUid, currentUser, isAuthLoading } = useApp();
+  const { path, navigate, params, isAllowedForRole } = useRouter();
 
-  // Sync router URL with active role if mismatched
-  useEffect(() => {
-    if (params.role) {
-      if (params.role === 'resident' && activeRole !== 'resident') {
-        switchRolePersona('resident');
-      } else if (params.role === 'security' && activeRole !== 'security_guard') {
-        switchRolePersona('security_guard');
-      } else if (
-        params.role === 'authority' &&
-        !['water_worker', 'electrical_worker', 'sanitation_worker', 'maintenance_worker'].includes(activeRole)
-      ) {
-        switchRolePersona('water_worker');
-      } else if (params.role === 'admin' && activeRole !== 'rwa_admin') {
-        switchRolePersona('rwa_admin');
-      }
-    }
-  }, [params.role, activeRole, switchRolePersona]);
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#f5f1ec] text-[#111111] flex flex-col items-center justify-center font-sans">
+        <div className="w-12 h-12 rounded-2xl bg-[#111111] text-white flex items-center justify-center animate-spin font-bold">
+          ⚡
+        </div>
+        <p className="text-xs text-stone-600 mt-3 font-semibold">Authenticating Greenwood Estate...</p>
+      </div>
+    );
+  }
 
   const handleSelectRole = (role: string, uid?: string) => {
     if (uid) {
@@ -43,7 +36,7 @@ const MainContent: React.FC = () => {
       switchRolePersona(role as any);
     }
 
-    // Navigate to role's primary route
+    // Navigate to role's primary route using centralized router
     if (role === 'resident') {
       navigate('/resident');
     } else if (role === 'security_guard') {
@@ -55,11 +48,73 @@ const MainContent: React.FC = () => {
     }
   };
 
-  const currentRole = params.role || (
-    activeRole === 'resident' ? 'resident' :
-    activeRole === 'security_guard' ? 'security' :
-    activeRole === 'rwa_admin' ? 'admin' : 'authority'
-  );
+  const roleRoute = params.role || 'resident';
+  const isAuthorized = isAllowedForRole(activeRole, path);
+  const isUnknown = params.isUnknownRoute;
+
+  const DASHBOARD_MAP: Record<string, React.ComponentType<{ params?: typeof params }>> = {
+    resident: ResidentApp,
+    security: SecurityDashboard,
+    authority: AuthorityDashboard,
+    admin: AdminDashboard,
+  };
+
+  const ActiveDashboard = DASHBOARD_MAP[roleRoute] || ResidentApp;
+
+  if (isUnknown) {
+    return (
+      <div className="min-h-screen bg-[#f5f1ec] text-[#111111] flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-[#d3cec6] shadow-xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto font-bold text-xl">
+              404
+            </div>
+            <h2 className="text-lg font-bold">Page Not Found</h2>
+            <p className="text-xs text-stone-600">
+              The page or resource you are looking for does not exist in Greenwood Estate.
+            </p>
+            <button
+              onClick={() => navigate('/resident')}
+              className="px-5 py-2.5 rounded-xl bg-[#111111] text-white text-xs font-bold hover:bg-stone-800 transition"
+            >
+              Return to Resident Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-[#f5f1ec] text-[#111111] flex flex-col font-sans">
+        <Header />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-[#d3cec6] shadow-xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center mx-auto font-bold text-xl">
+              🚫
+            </div>
+            <h2 className="text-lg font-bold">Access Restricted</h2>
+            <p className="text-xs text-stone-600">
+              Your current persona ({activeRole}) is not authorized to access this section ({roleRoute}).
+            </p>
+            <button
+              onClick={() => {
+                if (activeRole === 'resident') navigate('/resident');
+                else if (activeRole === 'security_guard') navigate('/security/gate');
+                else if (activeRole === 'rwa_admin') navigate('/admin/overview');
+                else navigate('/authority/work');
+              }}
+              className="px-5 py-2.5 rounded-xl bg-[#111111] text-white text-xs font-bold hover:bg-stone-800 transition"
+            >
+              Go to Permitted Dashboard
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f1ec] text-[#111111] flex flex-col font-sans selection:bg-amber-200">
@@ -68,10 +123,7 @@ const MainContent: React.FC = () => {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-20 md:pb-8">
-        {currentRole === 'resident' && <ResidentApp />}
-        {currentRole === 'authority' && <AuthorityDashboard />}
-        {currentRole === 'security' && <SecurityDashboard />}
-        {currentRole === 'admin' && <AdminDashboard />}
+        <ActiveDashboard params={params} />
       </main>
 
       {/* Persistent Mobile Bottom Navigation (thumb-friendly for one-handed use) */}

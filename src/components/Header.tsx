@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp, isDemoMode } from '../context/AppContext';
 import { UserRole, AppNotification } from '../types';
 import { useRouter } from '../router/Router';
 import {
@@ -142,12 +142,15 @@ export const Header: React.FC = () => {
     else navigate('/authority/work');
   };
 
-  // Breadcrumb generation & page title resolution
+  // Breadcrumb generation & page title resolution with dynamic path resolver
   const getPageTitle = () => {
     if (path.startsWith('/resident')) {
       if (path === '/resident') return 'Resident Dashboard';
-      if (path.startsWith('/resident/community')) return 'Community Discussions';
-      if (path.startsWith('/resident/announcements')) return 'Official Announcements';
+      if (path.startsWith('/resident/community')) return 'Resident Community';
+      if (path.startsWith('/resident/announcements')) {
+        if (params.id) return 'Announcement Details';
+        return 'Official Announcements';
+      }
       if (path.startsWith('/resident/issues')) {
         if (params.id === 'new') return 'Report New Issue';
         if (params.id) return 'Issue Details';
@@ -162,7 +165,7 @@ export const Header: React.FC = () => {
       if (path.startsWith('/resident/notifications')) return 'Notifications';
       return 'Resident Portal';
     } else if (path.startsWith('/security')) {
-      if (path.startsWith('/security/gate')) return 'Gate Operational Desk';
+      if (path.startsWith('/security/gate')) return 'Gate Operations';
       if (path.startsWith('/security/visitors')) {
         if (params.id) return 'Visitor Verification';
         return 'Inside Visitors';
@@ -174,7 +177,7 @@ export const Header: React.FC = () => {
     } else if (path.startsWith('/authority')) {
       if (path.startsWith('/authority/work')) return 'Assigned Work Queue';
       if (path.startsWith('/authority/issues')) {
-        if (params.id) return 'Ticket Details';
+        if (params.id) return 'Issue Details';
         return 'Department Issues';
       }
       if (path.startsWith('/authority/notifications')) return 'Department Alerts';
@@ -183,7 +186,7 @@ export const Header: React.FC = () => {
     } else if (path.startsWith('/admin')) {
       if (path.startsWith('/admin/overview')) return 'RWA Admin Overview';
       if (path.startsWith('/admin/issues')) {
-        if (params.id) return 'Issue Management';
+        if (params.id) return 'Issue Details';
         return 'Colony Issues Management';
       }
       if (path.startsWith('/admin/residents')) {
@@ -271,58 +274,60 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Center: Persona Switcher */}
-        <div className="relative">
-          <button
-            onClick={() => setShowRoleMenu(!showRoleMenu)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-[#d3cec6] hover:border-stone-400 transition shadow-xs text-xs sm:text-sm font-medium text-[#111111]"
-            title="Switch testing interface persona"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-[#7b7b78] hidden sm:inline">Role:</span>
-            <span className="font-semibold truncate max-w-[120px] sm:max-w-none">{currentRoleConfig.label}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-stone-500 shrink-0" />
-          </button>
+        {/* Center: Persona Switcher (Demo Mode Only) */}
+        {isDemoMode && (
+          <div className="relative">
+            <button
+              onClick={() => setShowRoleMenu(!showRoleMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-[#d3cec6] hover:border-stone-400 transition shadow-xs text-xs sm:text-sm font-medium text-[#111111]"
+              title="Switch testing interface persona"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[#7b7b78] hidden sm:inline">Role:</span>
+              <span className="font-semibold truncate max-w-[120px] sm:max-w-none">{currentRoleConfig.label}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-stone-500 shrink-0" />
+            </button>
 
-          {showRoleMenu && (
-            <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-[#d3cec6] p-2 z-50">
-              <div className="px-3 py-2 border-b border-stone-100 mb-1">
-                <p className="text-xs font-semibold text-[#111111]">Switch Operational Experience</p>
-                <p className="text-[11px] text-[#7b7b78]">Instant role simulation across all 4 apps</p>
-              </div>
-              <div className="space-y-1">
-                {roleConfigs.map((cfg) => {
-                  const Icon = cfg.icon;
-                  const isSelected = cfg.uid ? currentUser.uid === cfg.uid : activeRole === cfg.role;
-                  return (
-                    <button
-                      key={cfg.label}
-                      onClick={() => handleSelectPersona(cfg)}
-                      className={`w-full text-left p-2.5 rounded-lg flex items-start gap-3 transition ${
-                        isSelected
-                          ? 'bg-stone-100 text-[#111111] font-medium'
-                          : 'hover:bg-stone-50 text-stone-700'
-                      }`}
-                    >
-                      <div className="p-1.5 rounded-md bg-stone-100 text-stone-700 mt-0.5">
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold">{cfg.label}</span>
-                          {isSelected && (
-                            <span className="text-[10px] text-emerald-600 font-bold">Active</span>
-                          )}
+            {showRoleMenu && (
+              <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 mt-2 w-72 sm:w-80 bg-white rounded-xl shadow-xl border border-[#d3cec6] p-2 z-50">
+                <div className="px-3 py-2 border-b border-stone-100 mb-1">
+                  <p className="text-xs font-semibold text-[#111111]">Switch Operational Experience</p>
+                  <p className="text-[11px] text-[#7b7b78]">Instant role simulation across all 4 apps</p>
+                </div>
+                <div className="space-y-1">
+                  {roleConfigs.map((cfg) => {
+                    const Icon = cfg.icon;
+                    const isSelected = cfg.uid ? currentUser.uid === cfg.uid : activeRole === cfg.role;
+                    return (
+                      <button
+                        key={cfg.label}
+                        onClick={() => handleSelectPersona(cfg)}
+                        className={`w-full text-left p-2.5 rounded-lg flex items-start gap-3 transition ${
+                          isSelected
+                            ? 'bg-stone-100 text-[#111111] font-medium'
+                            : 'hover:bg-stone-50 text-stone-700'
+                        }`}
+                      >
+                        <div className="p-1.5 rounded-md bg-stone-100 text-stone-700 mt-0.5">
+                          <Icon className="w-4 h-4" />
                         </div>
-                        <p className="text-[11px] text-[#7b7b78] truncate">{cfg.desc}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold">{cfg.label}</span>
+                            {isSelected && (
+                              <span className="text-[10px] text-emerald-600 font-bold">Active</span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-[#7b7b78] truncate">{cfg.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Right side controls */}
         <div className="flex items-center gap-2 sm:gap-3">

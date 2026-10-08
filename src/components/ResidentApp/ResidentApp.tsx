@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useRouter } from '../../router/Router';
-import { Issue, VisitorEntry, Announcement } from '../../types';
+import { Issue, VisitorEntry, Announcement, IssueStatus } from '../../types';
 import { ResidentNav } from './ResidentNav';
 import { CommunityDiscussions } from './CommunityDiscussions';
 import { OfficialAnnouncements } from './OfficialAnnouncements';
@@ -33,7 +33,7 @@ import {
 } from 'lucide-react';
 
 export const ResidentApp: React.FC = () => {
-  const { currentUser, issues, visitors, announcements, preApprovedVisitors, posts } = useApp();
+  const { currentUser, issues, visitors, announcements, preApprovedVisitors, posts, updateIssueStatus } = useApp();
   const { path, navigate, params, goBack } = useRouter();
 
   const [showReportModal, setShowReportModal] = useState(false);
@@ -42,6 +42,11 @@ export const ResidentApp: React.FC = () => {
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorEntry | null>(null);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState<Announcement | null>(null);
   const [issueFilter, setIssueFilter] = useState<string>('ALL');
+
+  // Optimistic UI & Firestore sync states
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
 
   const residentFlat = currentUser.flatNumber || '242';
   const residentBlock = currentUser.block || 'B';
@@ -91,10 +96,58 @@ export const ResidentApp: React.FC = () => {
 
   const currentSection = params.section || 'home';
 
+  // Wrapper for optimistic issue status update with loading/error feedback
+  const handleOptimisticStatusUpdate = async (issueId: string, newStatus: IssueStatus) => {
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      await updateIssueStatus(issueId, newStatus, 'Status updated optimistically by resident');
+      setSyncSuccessMessage(`Issue #${issueId} status successfully updated to ${newStatus}`);
+      setTimeout(() => setSyncSuccessMessage(null), 3000);
+    } catch (err: any) {
+      setSyncError(err?.message || 'Failed to sync issue update with backend');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
       {/* Primary Resident Navigation Bar */}
       <ResidentNav />
+
+      {/* Sync Status / Error / Success Feedback Banners */}
+      {syncError && (
+        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 text-xs flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span><strong>Sync Warning:</strong> {syncError}</span>
+          </div>
+          <button
+            onClick={() => setSyncError(null)}
+            className="text-xs font-bold text-rose-700 hover:text-rose-900 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {syncSuccessMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{syncSuccessMessage}</span>
+          </div>
+          <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">Synced</span>
+        </div>
+      )}
+
+      {isSyncing && (
+        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2 animate-pulse">
+          <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+          <span>Syncing update with Firestore database...</span>
+        </div>
+      )}
 
       {/* Verification Status Banner if not fully approved */}
       {!isVerified && (

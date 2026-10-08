@@ -142,9 +142,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_PROFILES[0]); // Defaults to resident Rahul Sharma
+  const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_PROFILES[0]);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
   const [flats, setFlats] = useState<FlatRecord[]>(DEMO_FLATS);
   const [issues, setIssues] = useState<Issue[]>(INITIAL_ISSUES);
@@ -167,26 +167,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        // Sync or create user profile in Firestore
-        const userProfile: UserProfile = {
-          uid: user.uid,
-          name: user.displayName || user.email?.split('@')[0] || 'Resident User',
-          email: user.email || 'user@colony.local',
-          role: 'resident',
-          flatNumber: '242',
-          block: 'B',
-          verified: true,
-          verificationStatus: 'approved',
-          residentType: 'Owner',
-          avatarUrl: user.photoURL || undefined,
-          createdAt: new Date().toISOString(),
-        };
-        setCurrentUser(userProfile);
-
         try {
-          await setDoc(doc(db, 'users', user.uid), userProfile, { merge: true });
+          const userRef = doc(db, 'users', user.uid);
+          const snap = await getDoc(userRef);
+          if (snap.exists()) {
+            setCurrentUser(snap.data() as UserProfile);
+          } else {
+            const newProfile: UserProfile = {
+              uid: user.uid,
+              name: user.displayName || user.email?.split('@')[0] || 'Resident User',
+              email: user.email || '',
+              role: 'resident',
+              verified: false,
+              verificationStatus: 'unverified',
+              avatarUrl: user.photoURL || undefined,
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(userRef, newProfile);
+            setCurrentUser(newProfile);
+          }
         } catch (e) {
-          console.warn('Profile sync notice:', e);
+          console.warn('Profile fetch/create notice:', e);
+        }
+      } else {
+        if (!isDemoMode) {
+          setCurrentUser({
+            uid: 'unauth',
+            name: 'Guest User',
+            email: '',
+            role: 'resident',
+            verified: false,
+            verificationStatus: 'unverified',
+            createdAt: new Date().toISOString(),
+          });
         }
       }
       setIsAuthLoading(false);
@@ -362,7 +375,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     preApproval: PreApprovedVisitor,
     gate: string
   ) => {
-    const visitorId = 'vis-pre-' + Math.floor(100 + Math.random() * 900);
+    if (!preApproval.isActive || new Date(preApproval.validUntil).getTime() < Date.now()) {
+      throw new Error('Pre-approved pass is inactive or expired.');
+    }
+    const visitorId = 'vis-pre-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8);
     const entryTime = new Date().toISOString();
 
     const newEntry: VisitorEntry = {
@@ -965,15 +981,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateVisitorApproval = async (visitorId: string, approval: 'approved' | 'denied') => {
+    const newStatus = approval === 'approved' ? 'inside' : 'exited';
     setVisitors((prev) =>
-      prev.map((v) => (v.id === visitorId ? { ...v, residentApproval: approval } : v))
+      prev.map((v) => (v.id === visitorId ? { ...v, residentApproval: approval, status: newStatus } : v))
     );
 
     const target = visitors.find((v) => v.id === visitorId);
     if (target) {
       const notif: AppNotification = {
         id: 'notif-' + Date.now(),
-        title: `Resident ${approval.toUpperCase()} Visitor`,
+        flatNumber: target.flatNumber,
+        title: `Visitor Entry ${approval.toUpperCase()}`,
         message: `Flat ${target.block}-${target.flatNumber} has ${approval} entry for ${target.visitorName}.`,
         type: 'visitor',
         relatedId: visitorId,
@@ -986,6 +1004,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await updateDoc(doc(db, 'visitors', visitorId), {
         residentApproval: approval,
+        status: newStatus,
       });
     } catch (err) {
       console.warn('Firestore visitor approval notice:', err);
@@ -1150,14 +1169,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const markNotificationRead = (notifId: string) => {
+  const markNotificationRead = async (notifId: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === notifId ? { ...n, isRead: true } : n))
     );
+    try {
+      await updateDoc(doc(db, 'notifications', notifId), { isRead: true });
+    } catch (err) {
+      console.warn('Firestore notification read update notice:', err);
+    }
   };
 
-  const markAllNotificationsRead = () => {
+  const markAllNotificationsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      const unread = notifications.filter((n) => !n.isRead);
+      await Promise.all(
+        unread.map((n) =>
+          updateDoc(doc(db, 'notifications', n.id), { isRead: true }).catch(() => {})
+        )
+      );
+    } catch (err) {
+      console.warn('Firestore mark all read notice:', err);
+    }
   };
 
   const unreadNotifsCount = notifications.filter(

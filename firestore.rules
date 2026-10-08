@@ -2,13 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
     function isSignedIn() {
       return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
     }
 
     function userDoc() {
@@ -23,6 +18,27 @@ service cloud.firestore {
       return userExists() ? userDoc().role : 'resident';
     }
 
+    function isAdmin() {
+      return isSignedIn() && userExists() && userDoc().role == 'rwa_admin';
+    }
+
+    function isSecurityGuard() {
+      return isSignedIn() && userExists() && userDoc().role == 'security_guard';
+    }
+
+    function isWorker() {
+      return isSignedIn() && userExists() && userDoc().role in [
+        'water_worker',
+        'electrical_worker',
+        'sanitation_worker',
+        'maintenance_worker'
+      ];
+    }
+
+    function getWorkerDept() {
+      return userExists() ? userDoc().department : '';
+    }
+
     function getUserFlat() {
       return userExists() ? userDoc().flatNumber : '';
     }
@@ -31,152 +47,112 @@ service cloud.firestore {
       return userExists() ? userDoc().block : '';
     }
 
-    function isSuperAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'sachit1771@gmail.com' ||
-        request.auth.token.email == 'admin@colony.local' ||
-        (userExists() && userDoc().role == 'rwa_admin')
-      );
-    }
-
-    function isSecurity() {
-      return isSignedIn() && (
-        isSuperAdmin() ||
-        (userExists() && userDoc().role == 'security_guard')
-      );
-    }
-
-    function isAuthority() {
-      return isSignedIn() && (
-        isSuperAdmin() ||
-        (userExists() && userDoc().role in [
-          'water_worker',
-          'electrical_worker',
-          'sanitation_worker',
-          'maintenance_worker'
-        ])
-      );
-    }
-
-    function isVerifiedResident() {
-      return isSignedIn() && userExists() && (
-        isSuperAdmin() ||
-        (userDoc().role == 'resident' && userDoc().verified == true)
-      );
-    }
-
-    // Health check document
+    // Health check
     match /test/{docId} {
       allow read: if isSignedIn();
-      allow write: if isSuperAdmin();
+      allow write: if isAdmin();
     }
 
-    // Users collection: protected profile management
+    // Users collection
     match /users/{userId} {
-      // Users can read own profile; security, authority, and admin can read for colony operations
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
-        isSecurity() ||
-        isAuthority() ||
-        isSuperAdmin()
+        isAdmin() ||
+        isSecurityGuard() ||
+        isWorker()
       );
 
-      // Creating user profile
-      allow create: if isSignedIn() && request.auth.uid == userId && (
-        // Regular user cannot self-assign admin role or verified flag
-        (
-          request.resource.data.role != 'rwa_admin' &&
-          request.resource.data.verified != true
-        ) ||
-        isSuperAdmin()
-      );
+      // Create own profile as unverified resident only
+      allow create: if isSignedIn() && request.auth.uid == userId &&
+        request.resource.data.role == 'resident' &&
+        request.resource.data.verified == false &&
+        request.resource.data.verificationStatus == 'unverified';
 
-      // Updating user profile: regular users can only edit non-privileged fields
+      // Update: admin can update anything; regular user can only update safe fields
       allow update: if isSignedIn() && (
-        isSuperAdmin() ||
+        isAdmin() ||
         (
           request.auth.uid == userId &&
           !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'role',
+            'department',
+            'block',
+            'flatNumber',
             'verified',
-            'verificationStatus'
+            'verificationStatus',
+            'residentType'
+          ]) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name',
+            'phone',
+            'avatarUrl'
           ])
         )
       );
 
-      allow delete: if isSuperAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Pre-approved frequent visitors created by residents
-    match /preapproved_visitors/{visitorId} {
+    // Pre-approved visitors
+    match /preapproved_visitors/{passId} {
       allow read: if isSignedIn() && (
         resource.data.residentId == request.auth.uid ||
-        isSecurity() ||
-        isSuperAdmin()
+        isSecurityGuard() ||
+        isAdmin()
       );
-
-      allow create: if isSignedIn() && (
-        request.resource.data.residentId == request.auth.uid ||
-        isSuperAdmin()
-      );
-
-      allow update: if isSignedIn() && (
+      allow create: if isSignedIn() && request.resource.data.residentId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (
         resource.data.residentId == request.auth.uid ||
-        isSecurity() ||
-        isSuperAdmin()
-      );
-
-      allow delete: if isSignedIn() && (
-        resource.data.residentId == request.auth.uid ||
-        isSuperAdmin()
+        isAdmin()
       );
     }
 
-    // Resident Verification Requests
+    // Verification requests
     match /verification_requests/{requestId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
-        isSuperAdmin()
+        isAdmin()
       );
-
-      allow create: if isSignedIn() && (
-        request.resource.data.userId == request.auth.uid ||
-        isSuperAdmin()
-      );
-
-      allow update, delete: if isSuperAdmin();
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
-    // Issues & Maintenance Requests
+    // Issues
     match /issues/{issueId} {
-      allow read: if isSignedIn();
-
-      allow create: if isSignedIn() && (
-        request.resource.data.reporterId == request.auth.uid ||
-        isSuperAdmin()
+      allow read: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.reporterId == request.auth.uid ||
+        (isWorker() && (resource.data.department == getWorkerDept() || resource.data.assignedTo == request.auth.uid))
       );
 
+      allow create: if isSignedIn() && request.resource.data.reporterId == request.auth.uid;
+
       allow update: if isSignedIn() && (
-        isSuperAdmin() ||
-        isAuthority() ||
+        isAdmin() ||
+        (
+          isWorker() &&
+          resource.data.department == getWorkerDept() &&
+          (resource.data.assignedTo == request.auth.uid || request.resource.data.assignedTo == request.auth.uid)
+        ) ||
         (
           resource.data.reporterId == request.auth.uid &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny([
             'status',
-            'comments',
-            'updatedAt'
+            'assignedTo',
+            'department',
+            'resolutionProof'
           ])
         )
       );
 
-      allow delete: if isSuperAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Visitor Gate Entries
+    // Visitors
     match /visitors/{visitorId} {
       allow read: if isSignedIn() && (
-        isSecurity() ||
-        isSuperAdmin() ||
+        isAdmin() ||
+        isSecurityGuard() ||
         (
           userExists() &&
           resource.data.flatNumber == getUserFlat() &&
@@ -184,33 +160,35 @@ service cloud.firestore {
         )
       );
 
-      allow create: if isSecurity() || isSuperAdmin();
+      allow create: if isSecurityGuard() || isAdmin();
 
       allow update: if isSignedIn() && (
-        isSecurity() ||
-        isSuperAdmin() ||
+        isSecurityGuard() ||
+        isAdmin() ||
         (
-          // Target resident can approve or deny gate entry request
           userExists() &&
           resource.data.flatNumber == getUserFlat() &&
           resource.data.block == getUserBlock() &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'residentApproval'
-          ])
+            'residentApproval',
+            'status'
+          ]) &&
+          request.resource.data.visitorName == resource.data.visitorName &&
+          request.resource.data.phone == resource.data.phone &&
+          request.resource.data.gate == resource.data.gate &&
+          request.resource.data.block == resource.data.block &&
+          request.resource.data.flatNumber == resource.data.flatNumber
         )
       );
 
-      allow delete: if isSuperAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Official Announcements & Emergency Alerts
+    // Announcements
     match /announcements/{announcementId} {
       allow read: if isSignedIn();
-
-      allow create, delete: if isSuperAdmin();
-
-      // Non-admins can only toggle acknowledgement on announcements
-      allow update: if isSuperAdmin() || (
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
         isSignedIn() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'acknowledgedBy'
@@ -218,26 +196,18 @@ service cloud.firestore {
       );
     }
 
-    // Community Channel Posts
+    // Posts
     match /posts/{postId} {
       allow read: if isSignedIn();
-
-      allow create: if isSignedIn() && (
-        request.resource.data.authorId == request.auth.uid ||
-        isSuperAdmin()
-      );
-
+      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.authorId == request.auth.uid ||
-        isSuperAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'likesCount'
-        ])
+        isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
       );
-
       allow delete: if isSignedIn() && (
         resource.data.authorId == request.auth.uid ||
-        isSuperAdmin()
+        isAdmin()
       );
     }
 
@@ -246,23 +216,23 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         resource.data.userId == 'ALL' ||
-        isSuperAdmin()
+        isAdmin()
       );
 
-      allow create: if isSignedIn();
+      allow create: if isAdmin() || isSecurityGuard() || isWorker() ||
+        (isSignedIn() && request.resource.data.userId == request.auth.uid);
 
       allow update: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
-        isSuperAdmin()
+        isAdmin()
       );
 
       allow delete: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
-        isSuperAdmin()
+        isAdmin()
       );
     }
 
-    // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
     }

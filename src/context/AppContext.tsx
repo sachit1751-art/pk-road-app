@@ -39,7 +39,7 @@ import {
   where,
 } from 'firebase/firestore';
 
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || import.meta.env.DEV;
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
 interface AppContextType {
   currentUser: UserProfile;
@@ -144,7 +144,18 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserProfile>(DEMO_PROFILES[0]);
+  
+  const [currentUser, setCurrentUser] = useState<UserProfile>(
+    isDemoMode ? DEMO_PROFILES[0] : {
+      uid: 'guest',
+      name: 'Guest User',
+      email: '',
+      role: 'resident',
+      verified: false,
+      verificationStatus: 'unverified',
+      createdAt: new Date().toISOString(),
+    }
+  );
   const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
@@ -210,10 +221,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => unsubscribe();
   }, []);
 
+  // Real-time listener for current user document
+  useEffect(() => {
+    if (!firebaseUser || isDemoMode) return;
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const unsubscribeUser = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) {
+        setCurrentUser(snap.data() as UserProfile);
+      }
+    }, (err) => console.error('User doc snapshot error:', err));
+    
+    return () => unsubscribeUser();
+  }, [firebaseUser, isDemoMode]);
+
   // Set up Firestore Listeners for real-time sync
   useEffect(() => {
-    if (isDemoMode || !firebaseUser) return; // Demo mode uses local data
-
+    if (isDemoMode || !firebaseUser) return;
     try {
       const issuesCol = collection(db, 'issues');
       let issuesQuery;
@@ -279,6 +302,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Quick Persona Role Switcher for instant testing
   const switchRolePersona = (role: UserRole) => {
+    if (!isDemoMode) {
+      console.warn('Role switching blocked in production.');
+      return;
+    }
     const profile = DEMO_PROFILES.find((p) => p.role === role) || {
       ...DEMO_PROFILES[0],
       role,
@@ -288,6 +315,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const switchPersonaByUid = (uid: string) => {
+    if (!isDemoMode) {
+      console.warn('Persona switching blocked in production.');
+      return;
+    }
     const profile = DEMO_PROFILES.find((p) => p.uid === uid);
     if (profile) {
       setCurrentUser(profile);
@@ -307,19 +338,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       await signOut(auth);
       setFirebaseUser(null);
-      setCurrentUser(DEMO_PROFILES[0]);
+      // Explicitly clear to a safe unauthenticated state
+      setCurrentUser({
+        uid: 'guest',
+        name: 'Guest User',
+        email: '',
+        role: 'resident',
+        verified: false,
+        verificationStatus: 'unverified',
+        createdAt: new Date().toISOString(),
+      });
     } catch (err) {
       console.error('Logout error:', err);
     }
   };
 
   const updateUserProfile = async (profileData: Partial<UserProfile>) => {
-    const updated = { ...currentUser, ...profileData };
+    // Whitelist allowed fields to prevent spoofing of roles, verification, etc.
+    const allowedFields: (keyof UserProfile)[] = ['name', 'phone', 'avatarUrl'];
+    const sanitizedData: Partial<UserProfile> = {};
+    
+    for (const key of allowedFields) {
+      if (key in profileData) {
+        sanitizedData[key] = profileData[key] as any;
+      }
+    }
+
+    if (Object.keys(sanitizedData).length === 0) return;
+
+    const updated = { ...currentUser, ...sanitizedData };
     setCurrentUser(updated);
     try {
-      await setDoc(doc(db, 'users', updated.uid), updated, { merge: true });
+      await updateDoc(doc(db, 'users', updated.uid), sanitizedData);
     } catch (err) {
       console.warn('Could not update Firestore user doc:', err);
+      // Rollback on failure
+      setCurrentUser(currentUser);
     }
   };
 
@@ -451,18 +505,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setVerificationRequests((prev) => [newReq, ...prev]);
 
-    // Update current user state to pending
-    const updatedUser: UserProfile = {
-      ...currentUser,
-      block: data.block,
-      flatNumber: data.flatNumber,
-      residentType: data.residentType,
-      proofDocumentUrl: data.proofDocumentUrl,
-      verified: false,
-      verificationStatus: 'pending',
-    };
-    setCurrentUser(updatedUser);
-
     // Notify RWA Admin
     const adminNotif: AppNotification = {
       id: 'notif-vr-' + Date.now(),
@@ -477,7 +519,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       await setDoc(doc(db, 'verification_requests', id), newReq);
-      await setDoc(doc(db, 'users', currentUser.uid), updatedUser, { merge: true });
+      await setDoc(doc(db, 'users', currentUser.uid), {
+        verificationStatus: 'pending',
+        block: data.block,
+        flatNumber: data.flatNumber,
+      }, { merge: true });
       await setDoc(doc(db, 'notifications', adminNotif.id), adminNotif);
     } catch (err) {
       console.warn('Firestore verification request write notice:', err);
@@ -509,17 +555,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return f;
       })
     );
-
-    // Update user profile if target is current user
-    if (currentUser.uid === req.userId) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        verified: true,
-        verificationStatus: 'approved',
-        block: req.block,
-        flatNumber: req.flatNumber,
-      }));
-    }
 
     // Send confirmation notification to resident
     const residentNotif: AppNotification = {
@@ -576,15 +611,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : r
       )
     );
-
-    if (currentUser.uid === req.userId) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        verified: false,
-        verificationStatus: 'rejected',
-        rejectionReason: reason,
-      }));
-    }
 
     // Send rejection notification to resident with feedback
     const rejectNotif: AppNotification = {

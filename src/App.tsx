@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { AppProvider, useApp, isDemoMode } from './context/AppContext';
 import { RouterProvider, useRouter } from './router/Router';
 import { Header } from './components/Header';
@@ -7,15 +7,10 @@ import { ResidentApp } from './components/ResidentApp/ResidentApp';
 import { AuthorityDashboard } from './components/AuthorityApp/AuthorityDashboard';
 import { SecurityDashboard } from './components/SecurityApp/SecurityDashboard';
 import { AdminDashboard } from './components/AdminApp/AdminDashboard';
-import {
-  Home,
-  Wrench,
-  Shield,
-  UserCheck,
-} from 'lucide-react';
+import { LandingPage } from './components/LandingPage';
 
 const MainContent: React.FC = () => {
-  const { activeRole, switchRolePersona, switchPersonaByUid, currentUser, isAuthLoading } = useApp();
+  const { activeRole, currentUser, isAuthLoading, firebaseUser, switchPersonaByUid, switchRolePersona } = useApp();
   const { path, navigate, params, isAllowedForRole } = useRouter();
 
   if (isAuthLoading) {
@@ -27,6 +22,11 @@ const MainContent: React.FC = () => {
         <p className="text-xs text-stone-600 mt-3 font-semibold">Authenticating Greenwood Estate...</p>
       </div>
     );
+  }
+
+  // If not signed in and not in demo mode, show landing page
+  if (!firebaseUser && !isDemoMode && path !== '/login') {
+    return <LandingPage />;
   }
 
   const handleSelectRole = (role: string, uid?: string) => {
@@ -128,50 +128,6 @@ const MainContent: React.FC = () => {
 
       {/* Persistent Mobile Bottom Navigation (thumb-friendly for one-handed use) */}
       <MobileBottomNav />
-
-      {/* Role Switcher Footer (Demo Mode Only) */}
-      {isDemoMode && (
-        <footer className="bg-white border-t border-[#d3cec6] px-4 py-2.5 mt-auto shadow-xs mb-14 md:mb-0">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs">
-            <div className="flex items-center gap-2 text-stone-600">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="font-semibold text-stone-900">Greenwood Estate Operations Platform</span>
-              <span className="text-[#7b7b78] hidden md:inline">• AI Issue Routing & Gate Security (Demo Mode)</span>
-            </div>
-
-            <div className="flex items-center gap-1 overflow-x-auto max-w-full pb-0.5">
-              <span className="text-[11px] text-[#7b7b78] font-medium mr-1 hidden lg:inline">
-                Simulate Role:
-              </span>
-              {[
-                { role: 'resident', label: 'Resident (Verified B-242)', icon: Home, uid: 'demo-resident-1' },
-                { role: 'resident', label: 'Applicant (Unverified C-302)', icon: Home, uid: 'demo-resident-unverified' },
-                { role: 'water_worker', label: 'Water Worker', icon: Wrench },
-                { role: 'electrical_worker', label: 'Electrician', icon: Wrench },
-                { role: 'security_guard', label: 'Security Guard', icon: Shield },
-                { role: 'rwa_admin', label: 'RWA Admin', icon: UserCheck },
-              ].map((btn) => {
-                const Icon = btn.icon;
-                const isSelected = btn.uid ? currentUser.uid === btn.uid : activeRole === btn.role;
-                return (
-                  <button
-                    key={btn.label}
-                    onClick={() => handleSelectRole(btn.role, btn.uid)}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                      isSelected
-                        ? 'bg-[#111111] text-white shadow-xs'
-                        : 'bg-stone-100 hover:bg-stone-200 text-stone-700'
-                    }`}
-                  >
-                    <Icon className="w-3 h-3" />
-                    <span>{btn.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </footer>
-      )}
     </div>
   );
 };

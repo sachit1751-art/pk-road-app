@@ -114,20 +114,20 @@ export const ResidentApp: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       {/* Primary Resident Navigation Bar */}
       <ResidentNav />
 
       {/* Sync Status / Error / Success Feedback Banners */}
       {syncError && (
-        <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 text-xs flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
             <span><strong>Sync Warning:</strong> {syncError}</span>
           </div>
           <button
             onClick={() => setSyncError(null)}
-            className="text-xs font-bold text-rose-700 hover:text-rose-900 underline"
+            className="text-sm font-bold text-rose-700 hover:text-rose-900 underline"
           >
             Dismiss
           </button>
@@ -135,26 +135,26 @@ export const ResidentApp: React.FC = () => {
       )}
 
       {syncSuccessMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-sm flex items-center justify-between gap-3 shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
             <span>{syncSuccessMessage}</span>
           </div>
-          <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider">Synced</span>
+          <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Synced</span>
         </div>
       )}
 
       {isSyncing && (
-        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2 animate-pulse">
-          <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
-          <span>Syncing update with Firestore database...</span>
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm flex items-center gap-2 animate-pulse">
+          <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+          <span>Syncing update...</span>
         </div>
       )}
 
       {/* Verification Status Banner if not fully approved */}
       {!isVerified && (
         <div
-          className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs ${
+          className={`p-5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs ${
             isPendingVerification
               ? 'bg-amber-50/80 border-amber-300 text-amber-950'
               : isRejectedVerification
@@ -162,9 +162,9 @@ export const ResidentApp: React.FC = () => {
               : 'bg-blue-50 border-blue-200 text-blue-950'
           }`}
         >
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-4">
             <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
                 isPendingVerification
                   ? 'bg-amber-200 text-amber-900'
                   : isRejectedVerification
@@ -172,22 +172,22 @@ export const ResidentApp: React.FC = () => {
                   : 'bg-blue-200 text-blue-900'
               }`}
             >
-              <FileCheck className="w-5 h-5" />
+              <FileCheck className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold">
+                <span className="text-sm font-bold">
                   {isPendingVerification
                     ? 'Residency Verification Pending Approval'
                     : isRejectedVerification
                     ? 'Verification Request Requires Revision'
                     : 'Residency Verification Required'}
                 </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/80 border">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/80 border">
                   {currentUser.verificationStatus || 'Unverified'}
                 </span>
               </div>
-              <p className="text-xs text-stone-600 mt-0.5">
+              <p className="text-sm text-stone-700 mt-1 leading-relaxed">
                 {isPendingVerification
                   ? `Your proof document for Flat ${residentBlock}-${residentFlat} is currently in the RWA Admin queue.`
                   : isRejectedVerification
@@ -199,9 +199,9 @@ export const ResidentApp: React.FC = () => {
 
           <button
             onClick={() => setShowVerificationModal(true)}
-            className="px-4 py-2 rounded-xl bg-[#111111] text-white hover:bg-stone-800 text-xs font-bold shrink-0 transition shadow-xs"
+            className="px-6 py-3 rounded-xl bg-[#111111] text-white hover:bg-stone-800 text-sm font-bold shrink-0 transition shadow-xs"
           >
-            {isPendingVerification ? 'Update Submission' : 'Submit Proof of Residency'}
+            {isPendingVerification ? 'Update Submission' : 'Submit Proof'}
           </button>
         </div>
       )}
@@ -209,311 +209,101 @@ export const ResidentApp: React.FC = () => {
       {/* SECTION 1: HOME */}
       {currentSection === 'home' && (
         <div className="space-y-6">
-          {/* Emergency Alert Banner */}
+          {/* Emergency Alert Banner (Full width) */}
           {emergencyAlert && (
             <div
               onClick={() => navigate(`/resident/announcements/${emergencyAlert.id}`)}
-              className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-rose-100/70 transition shadow-sm"
+              className="p-4 rounded-2xl bg-rose-50 border-2 border-rose-400 text-rose-950 flex items-center justify-between gap-3 cursor-pointer hover:bg-rose-100 transition shadow-sm"
             >
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#ff5600] text-white flex items-center justify-center shrink-0 shadow-sm animate-pulse">
-                  <AlertCircle className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-rose-200 text-rose-900 tracking-wider">
-                      Emergency Alert
-                    </span>
-                    <span className="text-xs font-bold">{emergencyAlert.title}</span>
-                  </div>
-                  <p className="text-xs text-rose-800 mt-1 line-clamp-1">
-                    {emergencyAlert.content}
-                  </p>
-                </div>
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-[#ff5600] animate-pulse" />
+                <span className="text-sm font-bold text-rose-900">{emergencyAlert.title}</span>
               </div>
-              <span className="text-xs font-bold text-rose-700 underline shrink-0 flex items-center gap-1">
-                View Details <ChevronRight className="w-3.5 h-3.5" />
-              </span>
+              <span className="text-xs font-bold underline">View Detail</span>
             </div>
           )}
 
           {/* Resident Home Header & Primary Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-[#111111]">Flat {residentBlock}-{residentFlat} Overview</h2>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    isVerified
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : isPendingVerification
-                      ? 'bg-amber-50 text-amber-700 border-amber-200'
-                      : 'bg-rose-50 text-rose-700 border-rose-200'
-                  }`}
-                >
-                  {isVerified ? '✓ Verified' : isPendingVerification ? 'Pending Review' : 'Unverified'}
-                </span>
-              </div>
-              <p className="text-xs text-[#7b7b78] mt-0.5">
-                {currentUser.name} • Greenwood Estate Operations
-              </p>
+              <h2 className="text-lg font-bold text-[#111111]">Welcome, {currentUser.name.split(' ')[0]}</h2>
+              <p className="text-xs text-[#7b7b78]">Flat {residentBlock}-{residentFlat} | {isVerified ? '✓ Verified' : 'Unverified'}</p>
             </div>
-
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  if (!isVerified && !isPendingVerification) {
-                    setShowVerificationModal(true);
-                  } else {
-                    navigate('/resident/issues/new');
-                  }
-                }}
+                onClick={() => navigate('/resident/issues/new')}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ff5600] text-white hover:bg-orange-600 text-xs font-semibold transition shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Report Problem</span>
+                <span>Report</span>
               </button>
-
               <button
                 onClick={() => navigate('/resident/visitors')}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#d3cec6] bg-white hover:bg-stone-50 text-xs font-semibold text-stone-800 transition shadow-xs"
               >
                 <Key className="w-3.5 h-3.5" />
-                <span>+ Visitor Pass</span>
+                <span>+ Pass</span>
               </button>
             </div>
           </div>
 
-          {/* Key Metrics Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Critical Summary Cards (Horizontal Scroll) */}
+          <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-none">
+            {/* Active Issues Pulse */}
             <div
               onClick={() => navigate('/resident/issues')}
-              className="p-3.5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-stone-400 transition"
+              className="p-5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-orange-200 transition group shrink-0 w-64"
             >
-              <span className="text-[11px] text-[#7b7b78] font-medium block">Open Issues</span>
-              <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl font-bold text-[#111111]">
-                  {myIssues.filter((i) => i.status !== 'Resolved' && i.status !== 'Closed').length}
-                </span>
-                <span className="text-xs text-amber-600 font-semibold">View →</span>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-xl bg-orange-100 text-orange-600">
+                  <Wrench className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-stone-900">Active Issues</h3>
+              </div>
+              <div className="flex items-end justify-between">
+                <p className="text-3xl font-bold text-[#111111]">{myIssues.filter((i) => i.status !== 'Resolved' && i.status !== 'Closed').length}</p>
+                <span className="text-xs font-semibold text-orange-600 group-hover:underline">View All →</span>
               </div>
             </div>
 
+            {/* Pending Visitor Passes Pulse */}
             <div
               onClick={() => navigate('/resident/visitors')}
-              className="p-3.5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-stone-400 transition"
+              className="p-5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-purple-200 transition group shrink-0 w-64"
             >
-              <span className="text-[11px] text-[#7b7b78] font-medium block">Active Passes</span>
-              <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl font-bold text-[#111111]">{myPasses.length}</span>
-                <span className="text-xs text-emerald-600 font-semibold">Passes →</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/resident/visitors')}
-              className="p-3.5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-stone-400 transition"
-            >
-              <span className="text-[11px] text-[#7b7b78] font-medium block">Visitors Inside</span>
-              <div className="flex items-baseline justify-between mt-1">
-                <span className="text-xl font-bold text-[#111111]">
-                  {flatVisitors.filter((v) => v.status === 'inside').length}
-                </span>
-                <span className="text-xs text-purple-600 font-semibold">Log →</span>
-              </div>
-            </div>
-
-            <div
-              onClick={() => navigate('/resident/profile')}
-              className="p-3.5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-stone-400 transition"
-            >
-              <span className="text-[11px] text-[#7b7b78] font-medium block">Residency</span>
-              <div className="flex items-baseline justify-between mt-1">
-                <span className="text-sm font-bold text-[#111111] truncate">Flat {residentBlock}-{residentFlat}</span>
-                <span className="text-xs text-stone-600 font-semibold">Profile →</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Section: Open Issues */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                My Open Issues ({myIssues.length})
-              </h3>
-              <button
-                onClick={() => navigate('/resident/issues')}
-                className="text-xs font-semibold text-stone-700 hover:text-black"
-              >
-                View All Issues →
-              </button>
-            </div>
-
-            {myIssues.length === 0 ? (
-              <div className="p-6 text-center bg-white rounded-2xl border border-[#d3cec6] text-xs text-stone-500">
-                You have not submitted any issues. Click "Report Problem" to create one.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {myIssues.slice(0, 3).map((iss) => (
-                  <div
-                    key={iss.id}
-                    onClick={() => navigate(`/resident/issues/${iss.id}`)}
-                    className="p-4 rounded-2xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center shrink-0 mt-0.5">
-                        <Wrench className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-[#111111]">{iss.title}</span>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-700">
-                            {iss.department}
-                          </span>
-                        </div>
-                        <p className="text-xs text-stone-600 line-clamp-1 mt-0.5">{iss.description}</p>
-                        <div className="flex items-center gap-3 text-[11px] text-[#7b7b78] mt-1">
-                          <span>Status: <strong className="text-stone-800">{iss.status}</strong></span>
-                          <span>• Assigned: {iss.assignedWorkerName || 'Pending'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <span className="text-xs font-semibold text-stone-700 flex items-center gap-1 shrink-0">
-                      Open Issue <ChevronRight className="w-4 h-4 text-stone-400" />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* What happened recently: Recent Gate Visitors (Clicking opens visitor detail) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                Recent Visitor Activity for Flat {residentBlock}-{residentFlat}
-              </h3>
-              <button
-                onClick={() => navigate('/resident/visitors')}
-                className="text-xs font-semibold text-stone-700 hover:text-black"
-              >
-                View Full Gate Log →
-              </button>
-            </div>
-
-            {flatVisitors.length === 0 ? (
-              <div className="p-6 text-center bg-white rounded-2xl border border-[#d3cec6] text-xs text-stone-500">
-                No recent visitors logged at gate for your flat.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {flatVisitors.slice(0, 4).map((v) => (
-                  <div
-                    key={v.id}
-                    onClick={() => navigate(`/resident/visitors/${v.id}`)}
-                    className="p-3.5 rounded-xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer flex items-center justify-between gap-3 shadow-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-stone-700">
-                        {v.visitorType === 'Delivery' ? <Truck className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-bold text-[#111111]">{v.visitorName}</span>
-                          {v.isPreApproved && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
-                              Pre-Approved
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-[11px] text-stone-500">
-                          {v.visitorType} • Entry: {new Date(v.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        v.status === 'inside'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-stone-100 text-stone-600'
-                      }`}
-                    >
-                      {v.status === 'inside' ? 'Inside' : 'Exited'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Important Colony Announcements Preview (Card clicks directly to notice detail) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                Official Colony Notices ({announcements.length})
-              </h3>
-              <button
-                onClick={() => navigate('/resident/announcements')}
-                className="text-xs font-semibold text-stone-700 hover:text-black"
-              >
-                Browse Notices →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {announcements.slice(0, 2).map((ann) => (
-                <div
-                  key={ann.id}
-                  onClick={() => navigate(`/resident/announcements/${ann.id}`)}
-                  className="p-4 rounded-2xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs space-y-1.5"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-800">
-                      {ann.category}
-                    </span>
-                    <span className="text-xs font-bold text-[#111111] line-clamp-1">{ann.title}</span>
-                  </div>
-                  <p className="text-xs text-stone-600 line-clamp-2">{ann.content}</p>
-                  <span className="text-[11px] text-[#7b7b78] block pt-1">
-                    Published: {new Date(ann.createdAt).toLocaleDateString()} • Read Notice →
-                  </span>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-xl bg-purple-100 text-purple-600">
+                  <Key className="w-5 h-5" />
                 </div>
-              ))}
+                <h3 className="text-sm font-bold text-stone-900">Pending Passes</h3>
+              </div>
+              <div className="flex items-end justify-between">
+                <p className="text-3xl font-bold text-[#111111]">{myPasses.length}</p>
+                <span className="text-xs font-semibold text-purple-600 group-hover:underline">Manage →</span>
+              </div>
+            </div>
+
+            {/* Latest Notice Pulse */}
+            <div
+              onClick={() => navigate('/resident/announcements')}
+              className="p-5 rounded-2xl bg-white border border-[#d3cec6] shadow-xs cursor-pointer hover:border-blue-200 transition group shrink-0 w-64"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="p-2 rounded-xl bg-blue-100 text-blue-600">
+                  <Megaphone className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-stone-900">Latest Notice</h3>
+              </div>
+              <p className="text-sm font-semibold text-stone-700 h-10 line-clamp-2">{announcements[0]?.title || 'No new notices'}</p>
+              <span className="text-xs font-semibold text-blue-600 group-hover:underline mt-2 block">View Board →</span>
             </div>
           </div>
-
-          {/* Recent Community Activity Card (Links to relevant community channel) */}
+          
+          {/* Recent Updates Section */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                Recent Community Messages ({posts.length})
-              </h3>
-              <button
-                onClick={() => navigate('/resident/community')}
-                className="text-xs font-semibold text-stone-700 hover:text-black"
-              >
-                Open Community Channels →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {posts.slice(0, 2).map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => navigate(`/resident/community/${p.channel}`)}
-                  className="p-3.5 rounded-xl bg-white border border-[#d3cec6] hover:border-stone-400 transition cursor-pointer shadow-xs"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-stone-100 text-stone-700">
-                      #{p.channel}
-                    </span>
-                    <span className="text-xs font-bold text-[#111111]">{p.authorName}</span>
-                  </div>
-                  <p className="text-xs text-stone-600 line-clamp-1 mt-1">{p.content}</p>
-                </div>
-              ))}
+            <h3 className="text-sm font-bold text-[#111111]">Recent Updates</h3>
+            <div className="p-4 rounded-2xl bg-white border border-[#d3cec6] text-center text-xs text-stone-500">
+              No recent updates available.
             </div>
           </div>
         </div>

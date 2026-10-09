@@ -6,8 +6,8 @@ const emptyAnnouncements: Announcement[] = [];
 const emptyPosts: CommunityPost[] = [];
 
 const BRAND = {
-  name: 'ColonyHub',
-  tagline: 'ColonyHub connects residents, community discussions, official notices, and colony services.',
+  name: 'PK Road App',
+  tagline: 'PK Road App connects residents, community discussions, official notices, and colony services.',
   ctaCommunity: 'Explore Our Community',
   ctaAnnouncements: 'View Announcements',
   ctaLogin: 'Login',

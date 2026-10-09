@@ -1,9 +1,11 @@
 import React from 'react';
 import { useRouter } from '../router/Router';
+import { useApp } from '../context/AppContext';
 import { UserPlus } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const { navigate } = useRouter();
+  const { signInWithGoogle, isFirebaseConnected } = useApp();
 
   return (
     <div className="min-h-screen bg-white px-4 py-12 sm:px-6 lg:px-8">
@@ -21,8 +23,9 @@ export const RegisterPage: React.FC = () => {
             </p>
 
             <button
-              onClick={() => navigate('/login')}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1A2530] px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-900"
+              onClick={() => signInWithGoogle()}
+              disabled={!isFirebaseConnected}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1A2530] px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-900 disabled:opacity-50"
             >
               <UserPlus className="h-4 w-4" />
               Sign up with Google

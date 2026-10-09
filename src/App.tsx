@@ -26,7 +26,7 @@ const MainContent: React.FC = () => {
         <div className="w-12 h-12 rounded-2xl bg-[#1A2530] text-white flex items-center justify-center animate-spin font-bold">
           ⚡
         </div>
-        <p className="text-xs text-stone-600 mt-3 font-semibold">Authenticating ColonyHub...</p>
+        <p className="text-xs text-stone-600 mt-3 font-semibold">Authenticating PK Road App...</p>
       </div>
     );
   }

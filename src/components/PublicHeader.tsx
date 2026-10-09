@@ -33,7 +33,7 @@ export const PublicHeader: React.FC = () => {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A2530] text-white">
             <HouseMark className="h-5 w-5" />
           </div>
-          <span className="text-lg font-bold tracking-tight text-[#1A2530]">ColonyHub</span>
+          <span className="text-lg font-bold tracking-tight text-[#1A2530]">PK Road App</span>
         </a>
 
         <nav className="hidden items-center gap-6 sm:flex" aria-label="Public site navigation">

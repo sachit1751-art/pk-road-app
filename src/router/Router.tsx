@@ -58,7 +58,7 @@ export const ROUTE_REGISTRY: Record<AppRoleRoute, string[]> = {
   ],
 };
 
-const PUBLIC_SECTIONS = ['home', 'chat', 'announcements'];
+const PUBLIC_SECTIONS = ['home', 'chat', 'announcements', 'login', 'register'];
 
 function normalizePath(hash: string): string {
   const clean = hash.replace(/^#/, '').trim();
@@ -74,11 +74,15 @@ export function parseRoute(path: string): RouteParams {
   if (!firstSegment || !validRoles.includes(firstSegment as AppRoleRoute)) {
     // Public guest routes live under top-level public sections only.
     if (firstSegment && PUBLIC_SECTIONS.includes(firstSegment)) {
-      const section = parts[1] || 'home';
+      const section = parts[1] || firstSegment;
+      const id =
+        firstSegment === 'announcements' && parts.length >= 2
+          ? parts[1]
+          : parts[2] || undefined;
       return {
         isPublic: true,
         section,
-        id: parts[2] || undefined,
+        id,
         isUnknownRoute: false,
       };
     }

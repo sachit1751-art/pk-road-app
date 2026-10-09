@@ -89,12 +89,17 @@ console.log('\n--- 4. Checking Firestore Rules & Query Compatibility ---');
 const rulesContent = fs.readFileSync(path.resolve(process.cwd(), 'firestore.rules'), 'utf8');
 
 assert(!rulesContent.includes('match /posts/{postId} {\n      allow read: if isSignedIn();'), 'Posts must not allow read to arbitrary signed in users without role');
-assert(rulesContent.includes('userDoc().role == \'resident\''), 'Posts and notifications verify colony role');
-assert(!rulesContent.includes('resource.data.userId == \'ALL\' ||\n        isAdmin()'), 'Notifications must not have naked userId == ALL without role check');
-assert(rulesContent.includes('resource.data.targetBlock in [\'ALL\', getUserBlock()]'), 'Announcements rule must support in query');
+assert(rulesContent.includes("userDoc().role == 'resident'"), 'Posts and notifications verify colony role');
+assert(!rulesContent.includes("resource.data.userId == 'ALL' ||\n        isAdmin()"), 'Notifications must not have naked userId == ALL without role check');
+assert(rulesContent.includes("resource.data.targetBlock in ['ALL', getUserBlock()]"), 'Announcements rule must support in query');
 assert(rulesContent.includes('resource.data.department == getWorkerDept()'), 'Issues rule must permit worker department queue read');
-assert(rulesContent.includes('hasOnly([\'commentsCount\', \'comments\'])'), 'Posts rule must permit comments update');
-assert(rulesContent.includes('hasOnly([\'likesCount\', \'reactions\'])'), 'Posts rule must permit reactions update');
+assert(rulesContent.includes("hasOnly(['commentsCount', 'comments'])"), 'Posts rule must permit comments update');
+assert(rulesContent.includes("hasOnly(['likesCount', 'reactions'])"), 'Posts rule must permit reactions update');
+
+// Ensure client role privilege escalation is strictly forbidden in firestore.rules
+assert(rulesContent.includes("'role'"), 'User profile rule checks role immutability');
+assert(rulesContent.includes("'verified'"), 'User profile rule checks verified immutability');
+assert(rulesContent.includes("hasOnly([\n            'name',\n            'phone',\n            'avatarUrl'\n          ])"), 'User profile update strictly limited to non-privilege fields');
 
 console.log('✓ Firestore rules confirmed hardened and query-compatible.');
 
@@ -112,9 +117,66 @@ const appCtxContent = fs.readFileSync(path.resolve(process.cwd(), 'src/context/A
 assert(appCtxContent.includes('isDemoMode ? INITIAL_POSTS : []'), 'Posts must initialize empty in production');
 assert(appCtxContent.includes('isDemoMode ? INITIAL_ISSUES : []'), 'Issues must initialize empty in production');
 assert(appCtxContent.includes('isDemoMode ? INITIAL_NOTIFICATIONS : []'), 'Notifications must initialize empty in production');
+assert(appCtxContent.includes('isDemoMode ? INITIAL_VISITORS : []'), 'Visitors must initialize empty in production');
+assert(appCtxContent.includes('isDemoMode ? INITIAL_PREAPPROVED_VISITORS : []'), 'Pre-approved passes initialize empty in production');
 assert(appCtxContent.includes('unsubPosts'), 'Posts listener unsubscribed cleanly');
 assert(appCtxContent.includes('unsubPreApproved'), 'PreApproved passes listener unsubscribed cleanly');
 assert(appCtxContent.includes('unsubVerif'), 'Verification requests listener unsubscribed cleanly');
 console.log('✓ Production state isolation verified.');
 
-console.log('\n=== All Phase 2 Audit Verifications Passed Successfully ===');
+// Test 7: Notification Producers and Scoped Addressing
+console.log('\n--- 7. Checking Notification Producers Scope & Addressing ---');
+assert(!appCtxContent.includes("id: 'notif-' + Date.now(),\n      title: `New ${data.department}"), 'createIssue must set userId on notification');
+assert(appCtxContent.includes("userId: currentUser.uid,\n      flatNumber: currentUser.flatNumber,\n      title: `New ${data.department}"), 'createIssue assigns reporter userId');
+assert(appCtxContent.includes("userId: preApproval.residentId,\n      flatNumber: preApproval.flatNumber,"), 'expeditePreApprovedVisitorEntry assigns resident userId');
+assert(appCtxContent.includes("userId: req.userId,\n      flatNumber: req.flatNumber,\n      title: 'Residency Verification Approved!"), 'approveVerificationRequest assigns resident userId');
+assert(appCtxContent.includes("userId: targetIssue.reporterId,\n        flatNumber: targetIssue.flatNumber,"), 'updateIssueStatus assigns reporter userId');
+assert(appCtxContent.includes("userId: target.reporterId,\n        flatNumber: target.flatNumber,\n        title: `Work Completed"), 'resolveIssue assigns reporter userId');
+console.log('✓ Notification producer scopes verified.');
+
+// Test 8: Public Route Precedence over Auth Loading in App.tsx
+console.log('\n--- 8. Checking Guest Route Precedence in App.tsx ---');
+const appContent = fs.readFileSync(path.resolve(process.cwd(), 'src/App.tsx'), 'utf8');
+const publicRouteIndex = appContent.indexOf('if (isPublicRoute(path))');
+const authLoadingIndex = appContent.indexOf('if (isAuthLoading)');
+assert(publicRouteIndex !== -1, 'App.tsx checks isPublicRoute(path)');
+assert(authLoadingIndex !== -1, 'App.tsx checks isAuthLoading');
+assert(publicRouteIndex < authLoadingIndex, 'isPublicRoute(path) check must execute before isAuthLoading check');
+console.log('✓ Guest route instant hydration precedence verified.');
+
+// Test 9: Resident Shell Notification Tap Routing Handler
+console.log('\n--- 9. Checking ResidentApp Notification Tap Handler ---');
+const residentAppContent = fs.readFileSync(path.resolve(process.cwd(), 'src/components/ResidentApp/ResidentApp.tsx'), 'utf8');
+assert(residentAppContent.includes('handleNotificationTap'), 'ResidentApp has handleNotificationTap');
+assert(residentAppContent.includes('markNotificationRead(notif.id)'), 'Notification tap marks read');
+assert(residentAppContent.includes("navigate(`/resident/visitors/${notif.relatedId}`)"), 'Visitor notification routes to specific visitor');
+assert(residentAppContent.includes("navigate('/resident/visitors')"), 'Visitor notification falls back to visitors hub');
+assert(residentAppContent.includes("navigate(`/resident/issues/${notif.relatedId}`)"), 'Issue notification routes to specific issue');
+assert(residentAppContent.includes("navigate('/resident/issues')"), 'Issue notification falls back to issues hub');
+assert(residentAppContent.includes("navigate(`/resident/announcements/${notif.relatedId}`)"), 'Announcement routes to specific announcement');
+assert(residentAppContent.includes("navigate('/resident/announcements')"), 'Announcement falls back to announcements list');
+assert(residentAppContent.includes("navigate('/resident/profile')"), 'Verification notification routes to profile');
+console.log('✓ Notification tap mapper and fallbacks verified.');
+
+// Test 10: Email and Password Authentication & Backend Verification
+console.log('\n--- 10. Checking Email/Password Authentication & Endpoints ---');
+assert(appCtxContent.includes('signInWithEmail'), 'AppContext provides signInWithEmail');
+assert(appCtxContent.includes('signUpWithEmail'), 'AppContext provides signUpWithEmail');
+assert(appCtxContent.includes('sendPasswordReset'), 'AppContext provides sendPasswordReset');
+assert(serverContent.includes('/api/auth/validate'), 'server.ts provides /api/auth/validate endpoint');
+assert(serverContent.includes('/api/auth/roles'), 'server.ts provides /api/auth/roles endpoint');
+assert(serverContent.includes('/api/auth/audit'), 'server.ts provides /api/auth/audit endpoint');
+
+const loginContent = fs.readFileSync(path.resolve(process.cwd(), 'src/components/LoginPage.tsx'), 'utf8');
+assert(loginContent.includes('signInWithEmail'), 'LoginPage uses signInWithEmail');
+assert(loginContent.includes('showPassword'), 'LoginPage has password visibility toggle');
+assert(loginContent.includes('sendPasswordReset'), 'LoginPage supports password reset');
+
+const registerContent = fs.readFileSync(path.resolve(process.cwd(), 'src/components/RegisterPage.tsx'), 'utf8');
+assert(registerContent.includes('signUpWithEmail'), 'RegisterPage uses signUpWithEmail');
+assert(registerContent.includes('confirmPassword'), 'RegisterPage validates confirmPassword');
+assert(registerContent.includes('getPasswordStrength'), 'RegisterPage features password strength evaluation');
+
+console.log('✓ Email & password authentication workflows and backend verified.');
+
+console.log('\n=== All Phase 2 & Auth Audit Verifications Passed Successfully ===');

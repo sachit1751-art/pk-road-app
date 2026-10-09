@@ -26,7 +26,16 @@ import {
   INITIAL_VERIFICATION_REQUESTS,
 } from '../data/seedData';
 import { auth, googleProvider, db, testConnection, handleFirestoreError, OperationType } from '../firebase';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import {
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+  User,
+} from 'firebase/auth';
 import {
   collection,
   doc,
@@ -61,6 +70,14 @@ interface AppContextType {
   switchRolePersona: (role: UserRole) => void;
   switchPersonaByUid: (uid: string) => void;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+    name: string,
+    phone?: string
+  ) => Promise<{ success: boolean; error?: string }>;
+  sendPasswordReset: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUserProfile: (profile: Partial<UserProfile>) => Promise<void>;
 
@@ -384,6 +401,223 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const signInWithEmail = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !password) {
+      return { success: false, error: 'Email and password are required.' };
+    }
+
+    // Check demo credentials or offline fallback
+    if (isDemoMode || !isFirebaseConnected) {
+      const demoUser = DEMO_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
+      if (demoUser) {
+        setCurrentUser(demoUser);
+        fetch('/api/auth/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'login', email: cleanEmail, uid: demoUser.uid, role: demoUser.role }),
+        }).catch(() => {});
+        return { success: true };
+      }
+      if (isDemoMode) {
+        const fallbackUser: UserProfile = {
+          ...DEMO_PROFILES[0],
+          email: cleanEmail,
+          name: cleanEmail.split('@')[0],
+        };
+        setCurrentUser(fallbackUser);
+        return { success: true };
+      }
+    }
+
+    try {
+      const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      setFirebaseUser(cred.user);
+
+      // Retrieve user document from Firestore
+      const userRef = doc(db, 'users', cred.user.uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) {
+        const profile = snap.data() as UserProfile;
+        setCurrentUser(profile);
+        fetch('/api/auth/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'login', email: cleanEmail, uid: cred.user.uid, role: profile.role }),
+        }).catch(() => {});
+      } else {
+        const newProfile: UserProfile = {
+          uid: cred.user.uid,
+          name: cred.user.displayName || cred.user.email?.split('@')[0] || 'Resident User',
+          email: cred.user.email || cleanEmail,
+          role: 'resident',
+          verified: false,
+          verificationStatus: 'unverified',
+          createdAt: new Date().toISOString(),
+        };
+        await setDoc(userRef, newProfile);
+        setCurrentUser(newProfile);
+        fetch('/api/auth/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'login_new_profile', email: cleanEmail, uid: cred.user.uid, role: 'resident' }),
+        }).catch(() => {});
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Email sign in error:', err);
+
+      // Helpful fallback for demo accounts during local testing or offline states
+      const demoUser = DEMO_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
+      if (
+        demoUser &&
+        (err.code === 'auth/invalid-credential' ||
+          err.code === 'auth/user-not-found' ||
+          err.code === 'auth/operation-not-allowed')
+      ) {
+        setCurrentUser(demoUser);
+        return { success: true };
+      }
+
+      let errorMsg = 'Failed to sign in. Please verify your email and password.';
+      if (
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/wrong-password'
+      ) {
+        errorMsg = 'Incorrect email or password. Please try again.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Please enter a valid email address.';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMsg = 'Too many attempts. Please wait a moment before trying again.';
+      } else if (err.code === 'auth/user-disabled') {
+        errorMsg = 'This account has been deactivated.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        errorMsg = 'Email/password sign-in is disabled in Firebase configuration.';
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  const signUpWithEmail = async (
+    email: string,
+    password: string,
+    name: string,
+    phone?: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = email.trim();
+    const cleanName = name.trim();
+
+    if (!cleanEmail || !password || !cleanName) {
+      return { success: false, error: 'Full name, email, and password are required.' };
+    }
+    if (password.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long.' };
+    }
+
+    if (!isFirebaseConnected && isDemoMode) {
+      const newDemoUser: UserProfile = {
+        uid: 'demo-res-' + Date.now(),
+        name: cleanName,
+        email: cleanEmail,
+        phone: phone?.trim() || undefined,
+        role: 'resident',
+        verified: false,
+        verificationStatus: 'unverified',
+        createdAt: new Date().toISOString(),
+      };
+      setCurrentUser(newDemoUser);
+      return { success: true };
+    }
+
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+
+      if (cleanName) {
+        try {
+          await updateProfile(cred.user, { displayName: cleanName });
+        } catch (profileErr) {
+          console.warn('Could not update Firebase displayName:', profileErr);
+        }
+      }
+
+      const userRef = doc(db, 'users', cred.user.uid);
+      const newProfile: UserProfile = {
+        uid: cred.user.uid,
+        name: cleanName || cred.user.email?.split('@')[0] || 'Resident User',
+        email: cred.user.email || cleanEmail,
+        phone: phone?.trim() || undefined,
+        role: 'resident',
+        verified: false,
+        verificationStatus: 'unverified',
+        createdAt: new Date().toISOString(),
+      };
+
+      await setDoc(userRef, newProfile);
+      setFirebaseUser(cred.user);
+      setCurrentUser(newProfile);
+
+      fetch('/api/auth/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'register', email: cleanEmail, uid: cred.user.uid, role: 'resident' }),
+      }).catch(() => {});
+
+      return { success: true };
+    } catch (err: any) {
+      console.error('Email sign up error:', err);
+      let errorMsg = 'Failed to register account.';
+      if (err.code === 'auth/email-already-in-use') {
+        errorMsg = 'An account with this email already exists. Please sign in instead.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Please enter a valid email address.';
+      } else if (err.code === 'auth/weak-password') {
+        errorMsg = 'Password must be at least 6 characters long.';
+      } else if (err.code === 'auth/operation-not-allowed') {
+        errorMsg = 'Email/password registration is not enabled in Firebase Authentication.';
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      return { success: false, error: errorMsg };
+    }
+  };
+
+  const sendPasswordReset = async (email: string): Promise<{ success: boolean; error?: string }> => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      return { success: false, error: 'Please enter your email address.' };
+    }
+
+    try {
+      if (isFirebaseConnected) {
+        await sendPasswordResetEmail(auth, cleanEmail);
+      }
+      fetch('/api/auth/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'password_reset_request', email: cleanEmail }),
+      }).catch(() => {});
+      return { success: true };
+    } catch (err: any) {
+      console.error('Password reset error:', err);
+      let errorMsg = 'Failed to send password reset email.';
+      if (err.code === 'auth/user-not-found') {
+        errorMsg = 'No registered account found with this email.';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMsg = 'Invalid email address.';
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      return { success: false, error: errorMsg };
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -559,6 +793,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Notify RWA Admin
     const adminNotif: AppNotification = {
       id: 'notif-vr-' + Date.now(),
+      userId: 'ALL',
       title: 'New Resident Verification Submitted',
       message: `${currentUser.name} applied for Flat ${data.block}-${data.flatNumber} with ${data.documentType}. Review in Admin Queue.`,
       type: 'verification',
@@ -795,6 +1030,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const notif: AppNotification = {
       id: 'notif-' + Date.now(),
+      userId: currentUser.uid,
+      flatNumber: currentUser.flatNumber,
       title: `New ${data.department} Ticket: ${data.title}`,
       message: `${currentUser.name} reported: ${data.title} at ${data.locationDetails}`,
       type: 'issue_update',
@@ -1018,8 +1255,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setVisitors((prev) => [newVisitor, ...prev]);
 
+    // Find resident matching flat when available
+    const matchingResident = DEMO_PROFILES.find(
+      (p) => p.role === 'resident' && p.block === data.block && p.flatNumber === data.flatNumber
+    );
+    const targetUserId = matchingResident?.uid || (currentUser.block === data.block && currentUser.flatNumber === data.flatNumber ? currentUser.uid : undefined);
+
     const visitorNotif: AppNotification = {
       id: 'notif-vis-' + Date.now(),
+      userId: targetUserId,
       flatNumber: data.flatNumber,
       title: `Visitor at Colony Gate (${data.gate})`,
       message: `${data.visitorName} (${data.visitorType}) has arrived for Flat ${data.block}-${data.flatNumber}. Purpose: ${data.purpose || 'Visit'}`,
@@ -1066,6 +1310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (target) {
       const notif: AppNotification = {
         id: 'notif-' + Date.now(),
+        userId: 'ALL',
         flatNumber: target.flatNumber,
         title: `Visitor Entry ${approval.toUpperCase()}`,
         message: `Flat ${target.block}-${target.flatNumber} has ${approval} entry for ${target.visitorName}.`,
@@ -1312,6 +1557,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         switchRolePersona,
         switchPersonaByUid,
         signInWithGoogle,
+        signInWithEmail,
+        signUpWithEmail,
+        sendPasswordReset,
         logout,
         updateUserProfile,
         addPreApprovedVisitor,

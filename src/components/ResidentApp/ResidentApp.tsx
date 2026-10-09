@@ -111,18 +111,18 @@ export const ResidentApp: React.FC = () => {
     ? announcements.find((a) => a.id === params.id) || null
     : null;
 
-  // 'NotFound' guard: Redirect if ID is provided but data is not found
+  // 'NotFound' guard: Redirect if ID is provided, data has loaded, but specific record is not found
   useEffect(() => {
-    if (currentSection === 'issues' && params.id && params.id !== 'new' && !selectedIssue) {
+    if (issues.length > 0 && currentSection === 'issues' && params.id && params.id !== 'new' && !selectedIssue) {
       navigate('/resident/issues');
     }
-    if (currentSection === 'visitors' && params.id && !selectedVisitor) {
+    if (visitors.length > 0 && currentSection === 'visitors' && params.id && !selectedVisitor) {
       navigate('/resident/visitors');
     }
-    if (currentSection === 'announcements' && params.id && !selectedAnnouncement) {
+    if (announcements.length > 0 && currentSection === 'announcements' && params.id && !selectedAnnouncement) {
       navigate('/resident/announcements');
     }
-  }, [currentSection, params.id, selectedIssue, selectedVisitor, selectedAnnouncement, navigate]);
+  }, [currentSection, params.id, selectedIssue, selectedVisitor, selectedAnnouncement, issues.length, visitors.length, announcements.length, navigate]);
 
   const filteredIssues = myIssues.filter((i) => {
     if (issueFilter === 'ALL') return true;

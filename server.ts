@@ -16,6 +16,29 @@ async function startServer() {
   // API Endpoint for AI Issue Classification
   app.post('/api/classify-issue', apiClassifyHandler);
 
+  // Health and System Status Endpoint
+  app.get('/api/health', (req, res) => {
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      app: 'PK Road App',
+      version: '1.0.0',
+    });
+  });
+
+  // Colony Public Facts Endpoint
+  app.get('/api/colony-info', (req, res) => {
+    res.json({
+      name: 'Panchkuian Road Railway Colony',
+      area: 'Railway Colony, Paharganj',
+      city: 'New Delhi',
+      state: 'Delhi',
+      pin: '110055',
+      country: 'India',
+      mapUrl: 'https://maps.app.goo.gl/R54A6rW274PAqUE28',
+    });
+  });
+
   const isProduction = process.env.NODE_ENV === 'production';
   if (isProduction) {
     app.use(express.static(path.resolve(__dirname, 'dist')));

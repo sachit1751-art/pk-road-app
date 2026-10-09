@@ -126,7 +126,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         isAdmin() ||
         resource.data.reporterId == request.auth.uid ||
-        (isWorker() && resource.data.assignedTo == request.auth.uid)
+        (isWorker() && (resource.data.department == getWorkerDept() || resource.data.assignedTo == request.auth.uid))
       );
 
       allow create: if isVerifiedResident() && request.resource.data.reporterId == request.auth.uid;
@@ -192,6 +192,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         isAdmin() ||
         resource.data.targetBlock == 'ALL' ||
+        resource.data.targetBlock in ['ALL', getUserBlock()] ||
         resource.data.targetBlock == getUserBlock()
       );
       allow create, delete: if isAdmin();
@@ -215,7 +216,9 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         resource.data.authorId == request.auth.uid ||
         isAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'reactions']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount', 'comments'])
       );
       allow delete: if isSignedIn() && (
         resource.data.authorId == request.auth.uid ||
@@ -235,7 +238,12 @@ service cloud.firestore {
         ))
       );
 
-      allow create: if isAdmin() || isSecurityGuard() || isWorker();
+      allow create: if isSignedIn() && (
+        isAdmin() ||
+        isSecurityGuard() ||
+        isWorker() ||
+        (userExists() && request.resource.data.type in ['issue_update', 'visitor', 'verification'])
+      );
 
       allow update: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||

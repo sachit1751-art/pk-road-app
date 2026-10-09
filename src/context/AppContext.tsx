@@ -160,13 +160,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
   const [flats, setFlats] = useState<FlatRecord[]>(DEMO_FLATS);
-  const [issues, setIssues] = useState<Issue[]>(INITIAL_ISSUES);
-  const [visitors, setVisitors] = useState<VisitorEntry[]>(INITIAL_VISITORS);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(INITIAL_ANNOUNCEMENTS);
-  const [posts, setPosts] = useState<CommunityPost[]>(INITIAL_POSTS);
-  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
-  const [preApprovedVisitors, setPreApprovedVisitors] = useState<PreApprovedVisitor[]>(INITIAL_PREAPPROVED_VISITORS);
-  const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>(INITIAL_VERIFICATION_REQUESTS);
+  const [issues, setIssues] = useState<Issue[]>(() => (isDemoMode ? INITIAL_ISSUES : []));
+  const [visitors, setVisitors] = useState<VisitorEntry[]>(() => (isDemoMode ? INITIAL_VISITORS : []));
+  const [announcements, setAnnouncements] = useState<Announcement[]>(() => (isDemoMode ? INITIAL_ANNOUNCEMENTS : []));
+  const [posts, setPosts] = useState<CommunityPost[]>(() => (isDemoMode ? INITIAL_POSTS : []));
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => (isDemoMode ? INITIAL_NOTIFICATIONS : []));
+  const [preApprovedVisitors, setPreApprovedVisitors] = useState<PreApprovedVisitor[]>(() => (isDemoMode ? INITIAL_PREAPPROVED_VISITORS : []));
+  const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>(() => (isDemoMode ? INITIAL_VERIFICATION_REQUESTS : []));
 
   // Initial test connection to Firestore
   useEffect(() => {
@@ -259,24 +259,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let visitorsQuery;
       if (currentUser.role === 'security_guard' || currentUser.role === 'rwa_admin') {
         visitorsQuery = visitorsCol;
-      } else {
+      } else if (currentUser.flatNumber && currentUser.block) {
         visitorsQuery = query(visitorsCol, where('flatNumber', '==', currentUser.flatNumber), where('block', '==', currentUser.block));
+      } else {
+        visitorsQuery = null;
       }
       
-      const unsubVisitors = onSnapshot(visitorsQuery, (snap) => {
+      let unsubVisitors = () => {};
+      if (visitorsQuery) {
+        unsubVisitors = onSnapshot(visitorsQuery, (snap) => {
           const list: VisitorEntry[] = [];
           snap.forEach((d) => list.push(d.data() as VisitorEntry));
           list.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
           setVisitors(list);
-      }, (err) => console.warn('Visitors snapshot notice:', err.message));
+        }, (err) => console.warn('Visitors snapshot notice:', err.message));
+      }
 
-      const unsubAnnounce = onSnapshot(collection(db, 'announcements'), (snap) => {
+      let announceQuery;
+      if (currentUser.role === 'rwa_admin') {
+        announceQuery = collection(db, 'announcements');
+      } else if (currentUser.block) {
+        announceQuery = query(collection(db, 'announcements'), where('targetBlock', 'in', ['ALL', currentUser.block]));
+      } else {
+        announceQuery = query(collection(db, 'announcements'), where('targetBlock', '==', 'ALL'));
+      }
+
+      const unsubAnnounce = onSnapshot(announceQuery, (snap) => {
         const list: Announcement[] = [];
         snap.forEach((d) => {
-            const ann = d.data() as Announcement;
-            if (currentUser.role === 'rwa_admin' || ann.targetBlock === 'ALL' || ann.targetBlock === currentUser.block) {
-                list.push(ann);
-            }
+          list.push(d.data() as Announcement);
         });
         list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setAnnouncements(list);
@@ -289,11 +300,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setNotifications(list);
       }, (err) => console.warn('Notifications snapshot notice:', err.message));
 
+      // Real-time Posts sync
+      const unsubPosts = onSnapshot(collection(db, 'posts'), (snap) => {
+        const list: CommunityPost[] = [];
+        snap.forEach((d) => list.push(d.data() as CommunityPost));
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setPosts(list);
+      }, (err) => console.warn('Posts snapshot notice:', err.message));
+
+      // Real-time Pre-Approved Visitors sync
+      let preApprovedQuery;
+      if (currentUser.role === 'security_guard' || currentUser.role === 'rwa_admin') {
+        preApprovedQuery = collection(db, 'preapproved_visitors');
+      } else {
+        preApprovedQuery = query(collection(db, 'preapproved_visitors'), where('residentId', '==', currentUser.uid));
+      }
+      const unsubPreApproved = onSnapshot(preApprovedQuery, (snap) => {
+        const list: PreApprovedVisitor[] = [];
+        snap.forEach((d) => list.push(d.data() as PreApprovedVisitor));
+        list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setPreApprovedVisitors(list);
+      }, (err) => console.warn('PreApproved snapshot notice:', err.message));
+
+      // Real-time Verification Requests sync
+      let verifQuery;
+      if (currentUser.role === 'rwa_admin') {
+        verifQuery = collection(db, 'verification_requests');
+      } else {
+        verifQuery = query(collection(db, 'verification_requests'), where('userId', '==', currentUser.uid));
+      }
+      const unsubVerif = onSnapshot(verifQuery, (snap) => {
+        const list: VerificationRequest[] = [];
+        snap.forEach((d) => list.push(d.data() as VerificationRequest));
+        list.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        setVerificationRequests(list);
+      }, (err) => console.warn('Verification requests snapshot notice:', err.message));
+
       return () => {
         unsubIssues();
         unsubVisitors();
         unsubAnnounce();
         unsubNotifs();
+        unsubPosts();
+        unsubPreApproved();
+        unsubVerif();
       };
     } catch (e) {
       console.warn('Firestore real-time listeners initialization notice:', e);
@@ -1173,18 +1223,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const reactToPost = async (postId: string, emoji: string) => {
+    let newLikes = 0;
+    let newReactions: Record<string, number> = {};
+
     setPosts((prev) =>
       prev.map((p) => {
         if (p.id !== postId) return p;
         const reactions = { ...(p.reactions || {}) };
         reactions[emoji] = (reactions[emoji] || 0) + 1;
+        newLikes = (p.likesCount || 0) + 1;
+        newReactions = reactions;
         return {
           ...p,
-          likesCount: p.likesCount + 1,
-          reactions,
+          likesCount: newLikes,
+          reactions: newReactions,
         };
       })
     );
+
+    try {
+      await updateDoc(doc(db, 'posts', postId), {
+        likesCount: newLikes,
+        reactions: newReactions,
+      });
+    } catch (err) {
+      console.warn('Firestore react to post notice:', err);
+    }
   };
 
   const deletePost = async (postId: string) => {

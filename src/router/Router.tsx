@@ -10,6 +10,7 @@ export interface RouteParams {
   postId?: string;
   subSection?: string;
   isUnknownRoute?: boolean;
+  isPublic?: boolean;
 }
 
 interface RouterContextType {
@@ -18,6 +19,7 @@ interface RouterContextType {
   goBack: (fallback?: string) => void;
   params: RouteParams;
   isAllowedForRole: (userRole: string, targetPath?: string) => boolean;
+  isPublicRoute: (targetPath?: string) => boolean;
 }
 
 const RouterContext = createContext<RouterContextType | undefined>(undefined);
@@ -56,9 +58,11 @@ export const ROUTE_REGISTRY: Record<AppRoleRoute, string[]> = {
   ],
 };
 
+const PUBLIC_SECTIONS = ['home', 'chat', 'announcements'];
+
 function normalizePath(hash: string): string {
   const clean = hash.replace(/^#/, '').trim();
-  if (!clean || clean === '/') return '/resident';
+  if (!clean || clean === '/') return '/home';
   return clean.startsWith('/') ? clean : `/${clean}`;
 }
 
@@ -68,10 +72,21 @@ export function parseRoute(path: string): RouteParams {
 
   const validRoles: AppRoleRoute[] = ['resident', 'security', 'authority', 'admin'];
   if (!firstSegment || !validRoles.includes(firstSegment as AppRoleRoute)) {
+    // Public guest routes live under top-level public sections only.
+    if (firstSegment && PUBLIC_SECTIONS.includes(firstSegment)) {
+      const section = parts[1] || 'home';
+      return {
+        isPublic: true,
+        section,
+        id: parts[2] || undefined,
+        isUnknownRoute: false,
+      };
+    }
+
     return {
       role: 'resident',
       section: 'home',
-      isUnknownRoute: Boolean(firstSegment && !validRoles.includes(firstSegment as any)),
+      isUnknownRoute: Boolean(firstSegment && !PUBLIC_SECTIONS.includes(firstSegment)),
     };
   }
 
@@ -121,6 +136,11 @@ export function parseRoute(path: string): RouteParams {
 
 export function checkRoleAllowed(userRole: string, targetPath: string): boolean {
   const params = parseRoute(targetPath);
+  if (!params.role && !params.isPublic) return true;
+
+  // Public guest pages never require a role.
+  if (params.isPublic) return true;
+
   if (!params.role) return true;
 
   if (userRole === 'rwa_admin') {
@@ -144,6 +164,11 @@ export function checkRoleAllowed(userRole: string, targetPath: string): boolean 
   }
 
   return false;
+}
+
+export function checkPublicRoute(targetPath: string): boolean {
+  const parsed = parseRoute(targetPath);
+  return Boolean(parsed.isPublic);
 }
 
 export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -197,8 +222,12 @@ export const RouterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return checkRoleAllowed(userRole, targetPath || path);
   }, [path]);
 
+  const isPublicRoute = useCallback((targetPath?: string) => {
+    return checkPublicRoute(targetPath || path);
+  }, [path]);
+
   return (
-    <RouterContext.Provider value={{ path, navigate, goBack, params, isAllowedForRole }}>
+    <RouterContext.Provider value={{ path, navigate, goBack, params, isAllowedForRole, isPublicRoute }}>
       {children}
     </RouterContext.Provider>
   );

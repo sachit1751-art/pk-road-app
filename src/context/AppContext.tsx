@@ -459,6 +459,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Send immediate high-priority notification to resident's flat
     const visitorNotif: AppNotification = {
       id: 'notif-vis-' + Date.now(),
+      userId: preApproval.residentId,
       flatNumber: preApproval.flatNumber,
       title: `✨ Pre-Approved Entry: ${preApproval.visitorName}`,
       message: `${preApproval.visitorName} (${preApproval.visitorType}) cleared expedited gate entry at ${gate} using Passcode ${preApproval.passcode}.`,
@@ -1052,6 +1053,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const notif: AppNotification = {
       id: 'notif-ann-' + Date.now(),
+      userId: 'ALL',
       title: data.priority === 'emergency' ? `🚨 EMERGENCY ALERT: ${data.title}` : `Notice: ${data.title}`,
       message: data.content.slice(0, 120) + '...',
       type: data.priority === 'emergency' ? 'emergency' : 'announcement',

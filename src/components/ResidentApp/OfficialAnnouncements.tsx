@@ -101,7 +101,8 @@ export const OfficialAnnouncements: React.FC = () => {
           return (
             <div
               key={ann.id}
-              className={`p-5 rounded-2xl border transition shadow-xs ${
+              onClick={() => navigate(`/resident/announcements/${ann.id}`)}
+              className={`p-5 rounded-2xl border transition shadow-xs cursor-pointer hover:border-stone-400 ${
                 isEmergency
                   ? 'bg-rose-50/70 border-rose-300 ring-1 ring-rose-200'
                   : isUrgent
@@ -162,7 +163,10 @@ export const OfficialAnnouncements: React.FC = () => {
 
                   {ann.actionRequired ? (
                     <button
-                      onClick={() => acknowledgeAnnouncement(ann.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        acknowledgeAnnouncement(ann.id);
+                      }}
                       disabled={isAcknowledged}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                         isAcknowledged

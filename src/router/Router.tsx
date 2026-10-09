@@ -74,11 +74,11 @@ export function parseRoute(path: string): RouteParams {
   if (!firstSegment || !validRoles.includes(firstSegment as AppRoleRoute)) {
     // Public guest routes live under top-level public sections only.
     if (firstSegment && PUBLIC_SECTIONS.includes(firstSegment)) {
-      const section = parts[1] || firstSegment;
+      const section = firstSegment;
       const id =
         firstSegment === 'announcements' && parts.length >= 2
           ? parts[1]
-          : parts[2] || undefined;
+          : undefined;
       return {
         isPublic: true,
         section,

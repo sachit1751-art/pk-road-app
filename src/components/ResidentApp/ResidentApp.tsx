@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useRouter } from '../../router/Router';
-import { Issue, VisitorEntry, Announcement, IssueStatus } from '../../types';
+import { Issue, VisitorEntry, Announcement, IssueStatus, AppNotification } from '../../types';
 import { ResidentNav } from './ResidentNav';
 import { CommunityDiscussions } from './CommunityDiscussions';
 import { OfficialAnnouncements } from './OfficialAnnouncements';
@@ -14,6 +14,7 @@ import { VerificationModal } from './VerificationModal';
 import {
   Home,
   AlertCircle,
+  Bell,
   Shield,
   Key,
   Plus,
@@ -33,7 +34,7 @@ import {
 } from 'lucide-react';
 
 export const ResidentApp: React.FC = () => {
-  const { currentUser, issues, visitors, announcements, preApprovedVisitors, posts, updateIssueStatus } = useApp();
+  const { currentUser, issues, visitors, announcements, preApprovedVisitors, posts, updateIssueStatus, notifications, markNotificationRead } = useApp();
   const { path, navigate, params, goBack } = useRouter();
 
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -64,6 +65,38 @@ export const ResidentApp: React.FC = () => {
   );
 
   const emergencyAlert = announcements.find((a) => a.priority === 'emergency');
+
+  const myNotifications = notifications.filter(
+    (n) => n.userId === currentUser.uid || (n.flatNumber && n.flatNumber === residentFlat) || n.userId === 'ALL'
+  );
+
+  const handleNotificationTap = (notif: AppNotification) => {
+    markNotificationRead(notif.id);
+
+    if (notif.type === 'visitor') {
+      if (notif.relatedId && visitors.some((v) => v.id === notif.relatedId)) {
+        navigate(`/resident/visitors/${notif.relatedId}`);
+      } else {
+        navigate('/resident/visitors');
+      }
+    } else if (notif.type === 'issue_update') {
+      if (notif.relatedId && issues.some((i) => i.id === notif.relatedId)) {
+        navigate(`/resident/issues/${notif.relatedId}`);
+      } else {
+        navigate('/resident/issues');
+      }
+    } else if (notif.type === 'announcement' || notif.type === 'emergency') {
+      if (notif.relatedId && announcements.some((a) => a.id === notif.relatedId)) {
+        navigate(`/resident/announcements/${notif.relatedId}`);
+      } else {
+        navigate('/resident/announcements');
+      }
+    } else if (notif.type === 'verification') {
+      navigate('/resident/profile');
+    } else {
+      navigate('/resident');
+    }
+  };
 
   // Drive detail views and modals from URL router params
   const currentSection = params.section || 'home';
@@ -301,10 +334,47 @@ export const ResidentApp: React.FC = () => {
           
           {/* Recent Updates Section */}
           <div className="space-y-3">
-            <h3 className="text-sm font-bold text-[#111111]">Recent Updates</h3>
-            <div className="p-4 rounded-2xl bg-white border border-[#d3cec6] text-center text-xs text-stone-500">
-              No recent updates available.
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#111111]">Recent Updates</h3>
+              {myNotifications.length > 0 && (
+                <button
+                  onClick={() => navigate('/resident/notifications')}
+                  className="text-xs font-semibold text-stone-600 hover:text-stone-900"
+                >
+                  View All ({myNotifications.length}) →
+                </button>
+              )}
             </div>
+            {myNotifications.length === 0 ? (
+              <div className="p-4 rounded-2xl bg-white border border-[#d3cec6] text-center text-xs text-stone-500">
+                No recent updates available.
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {myNotifications.slice(0, 4).map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => handleNotificationTap(notif)}
+                    className={`p-3.5 rounded-xl border transition cursor-pointer shadow-xs flex items-center justify-between gap-3 ${
+                      notif.isRead
+                        ? 'bg-white border-[#d3cec6] hover:border-stone-400'
+                        : 'bg-amber-50/60 border-amber-300'
+                    }`}
+                  >
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold text-[#111111] truncate">{notif.title}</p>
+                        {!notif.isRead && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#ff5600] shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-stone-600 line-clamp-1">{notif.message}</p>
+                    </div>
+                    <span className="text-xs font-semibold text-stone-700 shrink-0">→</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -405,6 +475,64 @@ export const ResidentApp: React.FC = () => {
 
       {/* SECTION 6: ANNOUNCEMENTS */}
       {currentSection === 'announcements' && <OfficialAnnouncements />}
+
+      {/* SECTION 7: NOTIFICATIONS */}
+      {currentSection === 'notifications' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1">
+            <div className="flex items-center gap-2.5">
+              <button
+                onClick={() => navigate('/resident')}
+                className="p-1.5 rounded-xl border border-[#d3cec6] bg-white hover:bg-stone-100 text-stone-700 transition flex items-center justify-center"
+                title="Back to Resident Home"
+              >
+                <ChevronRight className="w-4 h-4 rotate-180" />
+              </button>
+              <div>
+                <h2 className="text-sm font-bold text-[#111111]">Notifications & Alerts</h2>
+                <p className="text-xs text-[#7b7b78]">Real-time activity for Flat {residentBlock}-{residentFlat}</p>
+              </div>
+            </div>
+          </div>
+
+          {myNotifications.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-white border border-[#d3cec6] text-center space-y-2">
+              <Bell className="w-8 h-8 text-stone-300 mx-auto" />
+              <p className="text-sm font-semibold text-stone-700">No notifications yet</p>
+              <p className="text-xs text-stone-500">You're all caught up on colony updates.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {myNotifications.map((notif) => (
+                <div
+                  key={notif.id}
+                  onClick={() => handleNotificationTap(notif)}
+                  className={`p-4 rounded-2xl border transition cursor-pointer shadow-xs ${
+                    notif.isRead
+                      ? 'bg-white border-[#d3cec6] hover:border-stone-400'
+                      : 'bg-amber-50/60 border-amber-300 ring-1 ring-amber-200'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[#111111]">{notif.title}</span>
+                        {!notif.isRead && (
+                          <span className="w-2 h-2 rounded-full bg-[#ff5600]" />
+                        )}
+                      </div>
+                      <p className="text-xs text-stone-600 leading-relaxed">{notif.message}</p>
+                    </div>
+                    <span className="text-[10px] text-[#7b7b78] shrink-0">
+                      {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MODALS */}
       <ReportIssueModal

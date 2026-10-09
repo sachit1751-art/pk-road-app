@@ -30,11 +30,11 @@ Plans are written for a weak executor that has not seen this conversation. They 
 
 | Plan | Status |
 | --- | --- |
-| 001 | ready |
-| 002 | ready |
-| 003 | ready |
-| 004 | ready |
-| 005 | ready |
+| 001 | complete |
+| 002 | complete |
+| 003 | complete |
+| 004 | complete |
+| 005 | complete |
 
 ## Scope notes
 

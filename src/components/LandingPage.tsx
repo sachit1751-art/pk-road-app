@@ -9,7 +9,7 @@ export const LandingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#f5f1ec] flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-[#d3cec6] shadow-xl text-center space-y-6">
-        <h1 className="text-2xl font-bold text-[#111111]">Welcome to ColonyHub</h1>
+        <h1 className="text-2xl font-bold text-[#111111]">Welcome to PK Road App</h1>
         
         <div className="flex bg-[#eeeae3] p-1 rounded-full">
           {(['login', 'register'] as const).map((tab) => (

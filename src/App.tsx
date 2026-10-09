@@ -11,6 +11,7 @@ import { AdminDashboard } from './components/AdminApp/AdminDashboard';
 import { PublicHomePage } from './components/PublicHomePage';
 import { PublicChatPage } from './components/PublicChatPage';
 import { PublicAnnouncementsPage } from './components/PublicAnnouncementsPage';
+import { PublicHeader } from './components/PublicHeader';
 import { LoginPage } from './components/LoginPage';
 import { RegisterPage } from './components/RegisterPage';
 
@@ -20,18 +21,7 @@ const MainContent: React.FC = () => {
   const { activeRole, currentUser, isAuthLoading, firebaseUser, switchPersonaByUid, switchRolePersona } = useApp();
   const { path, navigate, params, isAllowedForRole, isPublicRoute } = useRouter();
 
-  if (isAuthLoading) {
-    return (
-      <div className="min-h-screen bg-white text-[#1A2530] flex flex-col items-center justify-center font-sans">
-        <div className="w-12 h-12 rounded-2xl bg-[#1A2530] text-white flex items-center justify-center animate-spin font-bold">
-          ⚡
-        </div>
-        <p className="text-xs text-stone-600 mt-3 font-semibold">Authenticating PK Road App...</p>
-      </div>
-    );
-  }
-
-  // Public guest routes are always visible, even before sign-in.
+  // Public guest routes are always visible, even before sign-in or while auth is loading.
   if (isPublicRoute(path)) {
     return (
       <div className="min-h-screen bg-white text-[#1A2530] flex flex-col font-sans">
@@ -39,6 +29,17 @@ const MainContent: React.FC = () => {
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-24 md:pb-10">
           <PublicRoutes />
         </main>
+      </div>
+    );
+  }
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-white text-[#1A2530] flex flex-col items-center justify-center font-sans">
+        <div className="w-12 h-12 rounded-2xl bg-[#1A2530] text-white flex items-center justify-center animate-spin font-bold">
+          ⚡
+        </div>
+        <p className="text-xs text-stone-600 mt-3 font-semibold">Authenticating PK Road App...</p>
       </div>
     );
   }
@@ -91,7 +92,7 @@ const MainContent: React.FC = () => {
             </div>
             <h2 className="text-lg font-bold">Page Not Found</h2>
             <p className="text-xs text-stone-600">
-              The page or resource you are looking for does not exist in Greenwood Estate.
+              The page or resource you are looking for does not exist in PK Road App.
             </p>
             <button
               onClick={() => navigate('/resident')}
@@ -161,88 +162,16 @@ export default function App() {
   );
 }
 
-function PublicHeader() {
-  const { path, navigate } = useRouter();
-
-  const tabs = [
-    { id: 'home', label: 'Home', path: '/home' },
-    { id: 'chat', label: 'Chat', path: '/chat' },
-    { id: 'announcements', label: 'Announcements', path: '/announcements' },
-  ];
-
-  const activeTab = (() => {
-    if (path === '/home' || path === '/home/') return 'home';
-    if (path.startsWith('/chat')) return 'chat';
-    if (path.startsWith('/announcements')) return 'announcements';
-    return null;
-  })();
-
-  return (
-    <header className="bg-white border-b border-stone-200">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A2530] text-white">
-            <HouseIcon className="h-5 w-5" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-[#1A2530]">ColonyHub</span>
-        </div>
-
-        <nav className="hidden items-center gap-6 sm:flex" aria-label="Public site navigation">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => navigate(tab.path)}
-              className={`text-sm font-semibold transition-colors hover:text-[#1A2530] ${
-                activeTab === tab.id
-                  ? 'text-[#1A2530] underline underline-offset-4 decoration-2 decoration-[#1A2530]'
-                  : 'text-stone-600'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/login')}
-            className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-[#1A2530] transition hover:bg-stone-100"
-          >
-            Login
-          </button>
-          <button
-            onClick={() => navigate('/register')}
-            className="rounded-xl bg-[#1A2530] px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-900"
-          >
-            Register
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function HouseIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
 function PublicRoutes() {
   const { params, navigate } = useRouter();
 
   if (params.isPublic) {
+    if (params.section === 'login') {
+      return <LoginPage />;
+    }
+    if (params.section === 'register') {
+      return <RegisterPage />;
+    }
     if (params.section === 'home' || !params.section) {
       return <PublicHomePage />;
     }

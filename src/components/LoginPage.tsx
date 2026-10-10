@@ -438,7 +438,24 @@ export const LoginPage: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => handleQuickDemoSelect('balwant.security@colony.local', 'security_guard')}
+                    onClick={() => handleQuickDemoSelect('superadmin.test@colony.local', 'rwa_admin')}
+                    className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 p-2.5 text-left transition hover:bg-amber-100 hover:border-amber-300"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+                        <ShieldCheck className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-stone-900">Aarav SuperAdmin (Testing)</div>
+                        <div className="text-[10px] text-amber-700">Superadmin / RWA · Flat A-101</div>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-stone-400" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoSelect('gate.guard@colony.local', 'security_guard')}
                     className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/60 p-2.5 text-left transition hover:bg-stone-100 hover:border-stone-300"
                   >
                     <div className="flex items-center gap-2.5">
@@ -446,7 +463,7 @@ export const LoginPage: React.FC = () => {
                         <ShieldCheck className="h-3.5 w-3.5" />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-stone-900">Balwant Singh</div>
+                        <div className="text-xs font-bold text-stone-900">Bahadur Thapa</div>
                         <div className="text-[10px] text-stone-500">Security Guard · Main Gate</div>
                       </div>
                     </div>
@@ -465,6 +482,23 @@ export const LoginPage: React.FC = () => {
                       <div>
                         <div className="text-xs font-bold text-stone-900">Suresh Kumar</div>
                         <div className="text-[10px] text-stone-500">Maintenance Authority · Water Supply</div>
+                      </div>
+                    </div>
+                    <ArrowRight className="h-3.5 w-3.5 text-stone-400" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoSelect('ramesh.electric@colony.local', 'electrical_worker')}
+                    className="flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50/60 p-2.5 text-left transition hover:bg-stone-100 hover:border-stone-300"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+                        <Wrench className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-stone-900">Ramesh Singh</div>
+                        <div className="text-[10px] text-stone-500">Maintenance Authority · Electrical</div>
                       </div>
                     </div>
                     <ArrowRight className="h-3.5 w-3.5 text-stone-400" />

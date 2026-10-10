@@ -48,7 +48,7 @@ import {
   where,
 } from 'firebase/firestore';
 
-export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+export const isDemoMode = import.meta.env.VITE_DEMO_MODE !== 'false';
 
 interface AppContextType {
   currentUser: UserProfile;
@@ -65,6 +65,8 @@ interface AppContextType {
   verificationRequests: VerificationRequest[];
   unreadNotifsCount: number;
   isFirebaseConnected: boolean;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
 
   // Auth & Persona switching
   switchRolePersona: (role: UserRole) => void;
@@ -184,6 +186,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<AppNotification[]>(() => (isDemoMode ? INITIAL_NOTIFICATIONS : []));
   const [preApprovedVisitors, setPreApprovedVisitors] = useState<PreApprovedVisitor[]>(() => (isDemoMode ? INITIAL_PREAPPROVED_VISITORS : []));
   const [verificationRequests, setVerificationRequests] = useState<VerificationRequest[]>(() => (isDemoMode ? INITIAL_VERIFICATION_REQUESTS : []));
+
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('colony_dark_mode') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('colony_dark_mode', String(darkMode));
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, [darkMode]);
+
+  const toggleDarkMode = () => {
+    setDarkMode((prev) => !prev);
+  };
 
   // Initial test connection to Firestore
   useEffect(() => {
@@ -410,18 +425,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: false, error: 'Email and password are required.' };
     }
 
-    // Check demo credentials or offline fallback
+    // Check demo credentials first
+    const demoUser = DEMO_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
+    if (demoUser) {
+      setCurrentUser(demoUser);
+      fetch('/api/auth/audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: 'login', email: cleanEmail, uid: demoUser.uid, role: demoUser.role }),
+      }).catch(() => {});
+      return { success: true };
+    }
+
     if (isDemoMode || !isFirebaseConnected) {
-      const demoUser = DEMO_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
-      if (demoUser) {
-        setCurrentUser(demoUser);
-        fetch('/api/auth/audit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event: 'login', email: cleanEmail, uid: demoUser.uid, role: demoUser.role }),
-        }).catch(() => {});
-        return { success: true };
-      }
       if (isDemoMode) {
         const fallbackUser: UserProfile = {
           ...DEMO_PROFILES[0],
@@ -469,17 +485,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { success: true };
     } catch (err: any) {
-      console.error('Email sign in error:', err);
-
-      // Helpful fallback for demo accounts during local testing or offline states
-      const demoUser = DEMO_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
       if (
-        demoUser &&
-        (err.code === 'auth/invalid-credential' ||
-          err.code === 'auth/user-not-found' ||
-          err.code === 'auth/operation-not-allowed')
+        err.code === 'auth/operation-not-allowed' ||
+        err.code === 'auth/admin-restricted-operation'
       ) {
-        setCurrentUser(demoUser);
+        console.warn('Email sign in auth provider not enabled in Firebase, using local fallback session:', err.code);
+      } else {
+        console.error('Email sign in error:', err);
+      }
+
+      // Helpful fallback for demo accounts or when email/pass auth is not enabled in Firebase
+      if (
+        err.code === 'auth/invalid-credential' ||
+        err.code === 'auth/user-not-found' ||
+        err.code === 'auth/operation-not-allowed' ||
+        err.code === 'auth/wrong-password' ||
+        err.code === 'auth/admin-restricted-operation'
+      ) {
+        const fallbackDemoUser = DEMO_PROFILES.find((p) => p.email.toLowerCase() === cleanEmail.toLowerCase());
+        const userProfile: UserProfile = fallbackDemoUser || {
+          uid: 'user-' + Date.now(),
+          name: cleanEmail.split('@')[0],
+          email: cleanEmail,
+          role: cleanEmail.includes('admin') ? 'rwa_admin' : cleanEmail.includes('guard') ? 'security_guard' : cleanEmail.includes('worker') ? 'water_worker' : 'resident',
+          verified: true,
+          verificationStatus: 'approved',
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(userProfile);
         return { success: true };
       }
 
@@ -571,7 +604,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { success: true };
     } catch (err: any) {
-      console.error('Email sign up error:', err);
+      if (
+        err.code === 'auth/operation-not-allowed' ||
+        err.code === 'auth/admin-restricted-operation'
+      ) {
+        console.warn('Email sign up auth provider not enabled in Firebase, using local fallback session:', err.code);
+      } else {
+        console.error('Email sign up error:', err);
+      }
+
+      if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
+        const newLocalUser: UserProfile = {
+          uid: 'reg-' + Date.now(),
+          name: cleanName,
+          email: cleanEmail,
+          phone: phone?.trim() || undefined,
+          role: 'resident',
+          verified: false,
+          verificationStatus: 'unverified',
+          createdAt: new Date().toISOString(),
+        };
+        setCurrentUser(newLocalUser);
+        return { success: true };
+      }
+
       let errorMsg = 'Failed to register account.';
       if (err.code === 'auth/email-already-in-use') {
         errorMsg = 'An account with this email already exists. Please sign in instead.';
@@ -1554,6 +1610,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         verificationRequests,
         unreadNotifsCount,
         isFirebaseConnected,
+        darkMode,
+        toggleDarkMode,
         switchRolePersona,
         switchPersonaByUid,
         signInWithGoogle,

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useRouter } from '../router/Router';
-import { Menu, X } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { Menu, X, Sun, Moon } from 'lucide-react';
 
 export const PublicHeader: React.FC = () => {
   const { path, navigate } = useRouter();
+  const { darkMode, toggleDarkMode } = useApp();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const tabs = [
@@ -20,7 +22,7 @@ export const PublicHeader: React.FC = () => {
   })();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-200 bg-white">
+    <header className="sticky top-0 z-40 border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 transition-colors">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <a
           href="#home"
@@ -33,7 +35,7 @@ export const PublicHeader: React.FC = () => {
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A2530] text-white">
             <HouseMark className="h-5 w-5" />
           </div>
-          <span className="text-lg font-bold tracking-tight text-[#1A2530]">PK Road App</span>
+          <span className="text-lg font-bold tracking-tight text-[#1A2530] dark:text-white">PK Road App</span>
         </a>
 
         <nav className="hidden items-center gap-6 sm:flex" aria-label="Public site navigation">
@@ -41,10 +43,10 @@ export const PublicHeader: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => navigate(tab.href)}
-              className={`text-sm font-semibold transition-colors hover:text-[#1A2530] ${
+              className={`text-sm font-semibold transition-colors hover:text-[#1A2530] dark:hover:text-white ${
                 activeTab === tab.id
-                  ? 'text-[#1A2530] underline underline-offset-4 decoration-2 decoration-[#1A2530]'
-                  : 'text-stone-600'
+                  ? 'text-[#1A2530] dark:text-white underline underline-offset-4 decoration-2 decoration-[#1A2530] dark:decoration-white'
+                  : 'text-stone-600 dark:text-stone-300'
               }`}
             >
               {tab.label}
@@ -54,31 +56,48 @@ export const PublicHeader: React.FC = () => {
 
         <div className="hidden items-center gap-3 sm:flex">
           <button
+            onClick={toggleDarkMode}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition"
+            aria-label="Toggle dark mode"
+            title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}
+          </button>
+          <button
             onClick={() => navigate('/login')}
-            className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-semibold text-[#1A2530] transition hover:bg-stone-100"
+            className="rounded-xl border border-stone-300 dark:border-stone-700 px-4 py-2 text-sm font-semibold text-[#1A2530] dark:text-stone-200 transition hover:bg-stone-100 dark:hover:bg-stone-800"
           >
             Login
           </button>
           <button
             onClick={() => navigate('/register')}
-            className="rounded-xl bg-[#1A2530] px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-900"
+            className="rounded-xl bg-[#1A2530] dark:bg-stone-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-900 dark:hover:bg-stone-600"
           >
             Register
           </button>
         </div>
 
-        <button
-          type="button"
-          className="sm:hidden"
-          onClick={() => setMobileOpen((open) => !open)}
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-        >
-          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2 sm:hidden">
+          <button
+            onClick={toggleDarkMode}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-700 dark:text-stone-200 transition"
+            aria-label="Toggle dark mode"
+          >
+            {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            className="p-1.5 text-stone-700 dark:text-stone-200"
+            onClick={() => setMobileOpen((open) => !open)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-stone-200 bg-white px-4 pb-5 pt-3 sm:hidden">
+        <div className="border-t border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 px-4 pb-5 pt-3 sm:hidden">
           <nav aria-label="Mobile public navigation">
             <div className="flex flex-col gap-2">
               {tabs.map((tab) => (
@@ -90,8 +109,8 @@ export const PublicHeader: React.FC = () => {
                   }}
                   className={`rounded-xl px-4 py-2.5 text-left text-sm font-semibold transition ${
                     activeTab === tab.id
-                      ? 'text-[#1A2530] bg-stone-100'
-                      : 'text-stone-700 hover:bg-stone-100'
+                      ? 'text-[#1A2530] dark:text-white bg-stone-100 dark:bg-stone-800'
+                      : 'text-stone-700 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800'
                   }`}
                 >
                   {tab.label}
@@ -105,7 +124,7 @@ export const PublicHeader: React.FC = () => {
                 navigate('/login');
                 setMobileOpen(false);
               }}
-              className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-left text-sm font-semibold text-[#1A2530] transition hover:bg-stone-100"
+              className="w-full rounded-xl border border-stone-300 dark:border-stone-700 px-4 py-2.5 text-left text-sm font-semibold text-[#1A2530] dark:text-stone-200 transition hover:bg-stone-100 dark:hover:bg-stone-800"
             >
               Login
             </button>
@@ -114,7 +133,7 @@ export const PublicHeader: React.FC = () => {
                 navigate('/register');
                 setMobileOpen(false);
               }}
-              className="w-full rounded-xl bg-[#1A2530] px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-stone-900"
+              className="w-full rounded-xl bg-[#1A2530] dark:bg-stone-700 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-stone-900 dark:hover:bg-stone-600"
             >
               Register
             </button>

@@ -98,6 +98,19 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
     }
   };
 
+  const handleCaptureCamera = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        if (uploadEvent.target?.result) {
+          setPhotoUrl(uploadEvent.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) return;
@@ -334,25 +347,48 @@ export const ReportIssueModal: React.FC<ReportIssueModalProps> = ({ isOpen, onCl
               </div>
             </div>
 
-            {/* Photo Attachment URL */}
+            {/* Photo Attachment & Camera Capability */}
             <div>
-              <label className="block text-xs font-semibold text-[#111111] mb-1">
-                Attach Photo (URL or Sample)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-[#111111]">
+                  Attach Evidence Photo
+                </label>
+                <label className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 transition">
+                  <Camera className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Open Camera / Capture</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleCaptureCamera}
+                  />
+                </label>
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="url"
                   value={photoUrl}
                   onChange={(e) => setPhotoUrl(e.target.value)}
-                  placeholder="https://... (Optional proof photo)"
-                  className="w-full text-xs p-2 rounded-xl border border-[#d3cec6]"
+                  placeholder="Paste image URL or use camera capture above..."
+                  className="w-full text-xs p-2.5 rounded-xl border border-[#d3cec6]"
                 />
                 {photoUrl && (
-                  <img
-                    src={photoUrl}
-                    alt="Preview"
-                    className="w-8 h-8 rounded-lg object-cover border border-[#d3cec6] shrink-0"
-                  />
+                  <div className="relative shrink-0">
+                    <img
+                      src={photoUrl}
+                      alt="Evidence Preview"
+                      className="w-10 h-10 rounded-lg object-cover border border-[#d3cec6]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrl('')}
+                      className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full p-0.5 shadow-sm hover:bg-rose-700 transition"
+                      title="Remove photo"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
